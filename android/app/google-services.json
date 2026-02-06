@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "635348122514",
+    "project_id": "life-quest-2026-5fc9a",
+    "storage_bucket": "life-quest-2026-5fc9a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:635348122514:android:7b8618bc5bfa090c981f4b",
+        "android_client_info": {
+          "package_name": "com.hackathon.lifequest.life_quest_rpg"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQ77MfvNvtMsupxpqFHbmze-8rS-Ysrvw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
