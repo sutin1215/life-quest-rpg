@@ -81,7 +81,7 @@ class ShopScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                         color: Colors.black45,
                         border:
-                            Border.all(color: Colors.amber.withOpacity(0.5)),
+                            Border.all(color: Colors.amber.withAlpha(128)),
                         borderRadius: BorderRadius.circular(8)),
                     child: Image.network(
                         "https://api.dicebear.com/9.x/pixel-art/png?seed=${item['name']}",

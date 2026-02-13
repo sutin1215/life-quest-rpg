@@ -1,34 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/ai_service.dart';
 import '../services/database_service.dart';
 import 'home_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final db = DatabaseService();
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
 
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _db = DatabaseService();
+  final _ai = AiService();
+  bool _isLoading = false;
+
+  Future<void> _generateQuestsAndBegin(
+      Map<String, dynamic> userData) async {
+    setState(() => _isLoading = true);
+
+    final bio = userData['bio'] ?? '';
+    final mainQuest = userData['mainQuest'] ?? 'Achieve my goals';
+
+    // Generate quests
+    final quests = await _ai.generateStarterQuests(bio, mainQuest);
+
+    // Save quests to DB
+    await _db.addQuests(quests);
+
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: db.getUserStats(),
+        stream: _db.getUserStats(),
         builder: (context, snapshot) {
-          // 1. Loading State
           if (!snapshot.hasData || !snapshot.data!.exists) {
             return const Center(
                 child: CircularProgressIndicator(color: Colors.amber));
           }
 
-          // 2. Data Parsing
           final data = snapshot.data!.data() as Map<String, dynamic>;
           final String className = data['className'] ?? 'Unknown Hero';
           final String story =
               data['story'] ?? 'Your legend is yet to be written...';
-
-          // GENERATE PIXEL AVATAR (DiceBear API)
           final String pixelAvatarUrl =
               "https://api.dicebear.com/9.x/pixel-art/png?seed=$className";
 
@@ -42,10 +67,7 @@ class ProfileScreen extends StatelessWidget {
                   Text("HERO AWAKENED",
                       style:
                           GoogleFonts.vt323(fontSize: 40, color: Colors.amber)),
-
                   const SizedBox(height: 30),
-
-                  // AVATAR
                   Container(
                     width: 180,
                     height: 180,
@@ -55,7 +77,7 @@ class ProfileScreen extends StatelessWidget {
                       color: Colors.black54,
                       boxShadow: [
                         BoxShadow(
-                            color: Colors.amber.withOpacity(0.3),
+                            color: Colors.amber.withAlpha(77),
                             blurRadius: 20)
                       ],
                     ),
@@ -76,17 +98,11 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
-                  // CLASS NAME
                   Text(className.toUpperCase(),
                       style:
                           GoogleFonts.vt323(fontSize: 32, color: Colors.white)),
-
                   const SizedBox(height: 10),
-
-                  // STATS ROW
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -100,10 +116,7 @@ class ProfileScreen extends StatelessWidget {
                           "DEX", data['dex'] ?? 0, Colors.greenAccent),
                     ],
                   ),
-
                   const SizedBox(height: 30),
-
-                  // ORIGIN STORY
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.all(16),
@@ -132,27 +145,23 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
-                  // CONTINUE BUTTON
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const HomeScreen()));
-                      },
-                      child: Text("BEGIN JOURNEY",
-                          style: GoogleFonts.vt323(
-                              fontSize: 24, color: Colors.black)),
-                    ),
+                    child: _isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(color: Colors.amber))
+                        : ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.amber,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            onPressed: () => _generateQuestsAndBegin(data),
+                            child: Text("BEGIN JOURNEY",
+                                style: GoogleFonts.vt323(
+                                    fontSize: 24, color: Colors.black)),
+                          ),
                   ),
                 ],
               ),
@@ -170,7 +179,7 @@ class ProfileScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withAlpha(51),
             border: Border.all(color: color),
             borderRadius: BorderRadius.circular(8),
           ),

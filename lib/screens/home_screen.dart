@@ -103,8 +103,9 @@ class _QuestBoardState extends State<QuestBoard> {
     return StreamBuilder<DocumentSnapshot>(
       stream: db.getUserStats(),
       builder: (context, snap) {
-        if (!snap.hasData || !snap.data!.exists)
+        if (!snap.hasData || !snap.data!.exists) {
           return const SizedBox(height: 50);
+        }
         final d = snap.data!.data() as Map<String, dynamic>;
         return Container(
           margin: const EdgeInsets.all(12),
@@ -134,8 +135,9 @@ class _QuestBoardState extends State<QuestBoard> {
     return StreamBuilder<QuerySnapshot>(
       stream: db.getQuests(),
       builder: (context, snap) {
-        if (!snap.hasData)
+        if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
+        }
         return ListView(
           padding: const EdgeInsets.all(12),
           children: snap.data!.docs.map((doc) {
@@ -167,6 +169,8 @@ class _QuestBoardState extends State<QuestBoard> {
   void _showAddQuestDialog() {
     final ctrl = TextEditingController();
     bool isLoading = false;
+    final navigator = Navigator.of(context); // Capture navigator
+
     showDialog(
         context: context,
         builder: (context) => StatefulBuilder(
@@ -187,10 +191,11 @@ class _QuestBoardState extends State<QuestBoard> {
                       if (!isLoading)
                         TextButton(
                             onPressed: () async {
+                              if (ctrl.text.isEmpty) return;
                               setState(() => isLoading = true);
                               final result = await ai.generateQuest(ctrl.text);
                               await db.addQuest(result);
-                              if (mounted) Navigator.pop(context);
+                              navigator.pop();
                             },
                             child: Text("SUMMON",
                                 style: GoogleFonts.vt323(color: Colors.amber)))

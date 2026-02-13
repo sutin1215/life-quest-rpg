@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/ai_service.dart';
 import '../services/database_service.dart';
-import 'home_screen.dart';
 import 'profile_screen.dart'; // <--- THIS WAS MISSING
 
 class CharacterCreationScreen extends StatefulWidget {
@@ -15,18 +14,24 @@ class CharacterCreationScreen extends StatefulWidget {
 
 class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
   final _bioController = TextEditingController();
+  final _mainQuestController = TextEditingController();
   final _ai = AiService();
   final _db = DatabaseService();
   bool _isLoading = false;
 
   void _awakenHero() async {
-    if (_bioController.text.isEmpty) return;
+    if (_bioController.text.isEmpty || _mainQuestController.text.isEmpty) {
+      return;
+    }
     setState(() => _isLoading = true);
 
     // 1. Ask AI to judge the soul
-    final result = await _ai.generateCharacter(_bioController.text);
+    final result = await _ai.generateCharacter(
+        _bioController.text, _mainQuestController.text);
 
     // 2. Save the Hero to DB
+    result['mainQuest'] = _mainQuestController.text;
+    result['bio'] = _bioController.text;
     await _db.initializeUser(result);
 
     if (!mounted) return;
@@ -66,6 +71,29 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                   fillColor: Colors.white10,
                   hintText:
                       "e.g., I am a Computer Science student. I love lifting weights, drinking coffee, and solving puzzles.",
+                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 30),
+              Text("WHAT IS YOUR MAIN QUEST?",
+                  style: GoogleFonts.vt323(fontSize: 32, color: Colors.white)),
+              const SizedBox(height: 10),
+              Text(
+                "Describe the primary goal you wish to achieve...",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.vt323(fontSize: 20, color: Colors.grey),
+              ),
+              const SizedBox(height: 30),
+              TextField(
+                controller: _mainQuestController,
+                maxLines: 2,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white10,
+                  hintText: "e.g., Get in shape",
                   hintStyle: TextStyle(color: Colors.grey[600]),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),

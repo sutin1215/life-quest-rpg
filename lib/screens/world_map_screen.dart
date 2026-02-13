@@ -53,8 +53,9 @@ class WorldMapScreen extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: db.getUserStats(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           final user = snapshot.data!.data() as Map<String, dynamic>;
           final int currentZone = user['currentZone'] ?? 1;
@@ -76,8 +77,8 @@ class WorldMapScreen extends StatelessWidget {
                 color: isLocked
                     ? Colors.white10
                     : (isActive
-                        ? Colors.amber.withOpacity(0.1)
-                        : Colors.green.withOpacity(0.1)),
+                        ? Colors.amber.withAlpha(26)
+                        : Colors.green.withAlpha(26)),
                 margin: const EdgeInsets.only(bottom: 20),
                 child: InkWell(
                   onTap: () {
@@ -198,6 +199,7 @@ class WorldMapScreen extends StatelessWidget {
                   ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
               onPressed: () async {
                 await db.defeatBoss(zone['id']);
+                if (!context.mounted) return;
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text("VICTORY! The path forward opens...")));

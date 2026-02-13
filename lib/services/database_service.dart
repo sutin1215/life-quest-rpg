@@ -23,6 +23,8 @@ class DatabaseService {
     await _db.collection('users').doc(userId).set({
       'className': aiData['className'],
       'story': aiData['story'],
+      'mainQuest': aiData['mainQuest'],
+      'bio': aiData['bio'],
       'level': 1,
       'xp': 0,
       'gold': 0,
@@ -40,6 +42,19 @@ class DatabaseService {
       'isCompleted': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<void> addQuests(List<Map<String, dynamic>> quests) async {
+    final batch = _db.batch();
+    for (final quest in quests) {
+      final newQuestRef = _db.collection('quests').doc();
+      batch.set(newQuestRef, {
+        ...quest,
+        'isCompleted': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
   }
 
   Future<void> completeQuest(
@@ -82,7 +97,7 @@ class DatabaseService {
       });
       return true;
     } catch (e) {
-      print("Boss Error: $e");
+      // TODO: Add proper logging
       return false;
     }
   }
@@ -94,7 +109,9 @@ class DatabaseService {
     try {
       await _db.runTransaction((t) async {
         final snap = await t.get(userRef);
-        if (!snap.exists) throw Exception("User not found");
+        if (!snap.exists) {
+          throw Exception("User not found");
+        }
 
         final data = snap.data() as Map<String, dynamic>;
         int currentGold = data['gold'] ?? 0;
@@ -111,7 +128,7 @@ class DatabaseService {
       });
       return true;
     } catch (e) {
-      print("Shop Error: $e");
+      // TODO: Add proper logging
       return false;
     }
   }
