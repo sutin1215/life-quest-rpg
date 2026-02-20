@@ -117,14 +117,14 @@ class _BattleScreenState extends State<BattleScreen>
                     height: 180,
                     decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black.withAlpha((255 * 0.5).round()),
                         boxShadow: [
                           BoxShadow(
                               color: zoneColor, blurRadius: 40, spreadRadius: 5)
                         ],
                         border: Border.all(color: Colors.white, width: 2)),
                     child: Icon(Icons.adb,
-                        size: 100, color: zoneColor.withOpacity(0.9)),
+                        size: 100, color: zoneColor.withAlpha((255 * 0.9).round())),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -157,7 +157,7 @@ class _BattleScreenState extends State<BattleScreen>
                   constraints: const BoxConstraints(minHeight: 120),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.8),
+                    color: Colors.black.withAlpha((255 * 0.8).round()),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.grey.shade800),
                   ),
@@ -201,7 +201,7 @@ class _BattleScreenState extends State<BattleScreen>
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                  color: color.withOpacity(0.5),
+                  color: color.withAlpha((255 * 0.5).round()),
                   blurRadius: 15,
                   offset: const Offset(0, 4))
             ],
@@ -230,14 +230,14 @@ class BattleBackgroundPainter extends CustomPainter {
 
     final gradientPaint = Paint()
       ..shader = RadialGradient(
-        colors: [color.withOpacity(0.25), Colors.transparent],
+        colors: [color.withAlpha((255 * 0.25).round()), Colors.transparent],
         radius: 1.0,
       ).createShader(rect);
 
     canvas.drawRect(rect, gradientPaint);
 
     final linePaint = Paint()
-      ..color = color.withOpacity(0.1)
+      ..color = color.withAlpha((255 * 0.1).round())
       ..strokeWidth = 1.5;
 
     // Floor Grid Effect
@@ -250,7 +250,7 @@ class BattleBackgroundPainter extends CustomPainter {
         Offset(0, size.height / 2),
         Offset(size.width, size.height / 2),
         Paint()
-          ..color = color.withOpacity(0.3)
+          ..color = color.withAlpha((255 * 0.3).round())
           ..strokeWidth = 2);
   }
 

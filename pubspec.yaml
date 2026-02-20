@@ -9,10 +9,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # The 2026 Compatible Stack
+
+  # Matches the specific requirements from your error log
   firebase_core: ^4.4.0
-  firebase_ai: ^3.7.0 # Unified AI SDK
-  cloud_firestore: ^6.1.2 # Matches Core 4.4.0
+  firebase_auth: ^6.1.4 # <--- FIXED: Updated from 5.0.0 to 6.1.4
+  firebase_ai: ^3.7.0
+  cloud_firestore: ^6.1.2
   google_fonts: ^6.2.1
   flutter_dotenv: ^5.2.1
 

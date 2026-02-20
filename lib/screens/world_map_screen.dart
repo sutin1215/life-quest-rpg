@@ -101,7 +101,7 @@ class WorldMapScreen extends StatelessWidget {
                       child: _buildFantasyMarker(zone, isLocked, isNext),
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
           );
@@ -116,7 +116,7 @@ class WorldMapScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text("Danger! Reach Level ${zone['reqLvl']} to enter.",
             style: GoogleFonts.vt323(fontSize: 20)),
-        backgroundColor: Colors.red.withOpacity(0.9),
+        backgroundColor: Colors.red.withAlpha((255 * 0.9).round()),
       ));
     } else {
       Navigator.push(
@@ -143,7 +143,7 @@ class WorldMapScreen extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: isLocked ? Colors.black : zone['color'].withOpacity(0.6),
+                color: isLocked ? Colors.black : zone['color'].withAlpha((255 * 0.6).round()),
                 blurRadius: isNext ? 25 : 10,
                 spreadRadius: isNext ? 5 : 2,
               )
@@ -158,7 +158,7 @@ class WorldMapScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.8),
+              color: Colors.black.withAlpha((255 * 0.8).round()),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.white12)),
           child: Text(zone['name'],

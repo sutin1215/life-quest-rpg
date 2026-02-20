@@ -1,13 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // <--- NEW IMPORT
 
 class DatabaseService {
-  // 1. DEFINING _db HERE MAKES IT VISIBLE TO THE WHOLE CLASS
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final String userId = "hero_player_1";
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  // <--- NEW: Dynamic User ID
+  String get userId {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception("User not logged in!");
+    }
+    return user.uid;
+  }
 
   // --- STREAMS ---
   Stream<QuerySnapshot> getQuests() {
     return _db
+        .collection(
+            'users') // <--- CHANGED: Quests are now sub-collection of User
+        .doc(userId)
         .collection('quests')
         .where('isCompleted', isEqualTo: false)
         .orderBy('createdAt', descending: true)
@@ -37,7 +49,7 @@ class DatabaseService {
   }
 
   Future<void> addQuest(Map<String, dynamic> data) async {
-    await _db.collection('quests').add({
+    await _db.collection('users').doc(userId).collection('quests').add({
       ...data,
       'isCompleted': false,
       'createdAt': FieldValue.serverTimestamp(),
@@ -46,8 +58,11 @@ class DatabaseService {
 
   Future<void> addQuests(List<Map<String, dynamic>> quests) async {
     final batch = _db.batch();
+    final userQuestRef =
+        _db.collection('users').doc(userId).collection('quests');
+
     for (final quest in quests) {
-      final newQuestRef = _db.collection('quests').doc();
+      final newQuestRef = userQuestRef.doc();
       batch.set(newQuestRef, {
         ...quest,
         'isCompleted': false,
@@ -60,11 +75,11 @@ class DatabaseService {
   Future<void> completeQuest(
       String questId, int xp, int gold, String statType) async {
     final userRef = _db.collection('users').doc(userId);
-    final questRef = _db.collection('quests').doc(questId);
+    final questRef = userRef.collection('quests').doc(questId);
 
     await _db.runTransaction((t) async {
       final snap = await t.get(userRef);
-      if (!snap.exists) return; // Should exist if we initialized!
+      if (!snap.exists) return;
 
       final d = snap.data() as Map<String, dynamic>;
       int lvl = d['level'] ?? 1;
@@ -73,6 +88,8 @@ class DatabaseService {
 
       int newXp = curXp + xp;
       int xpNeed = lvl * 100;
+
+      // Level Up Logic
       if (newXp >= xpNeed) {
         lvl++;
         newXp -= xpNeed;
@@ -97,7 +114,6 @@ class DatabaseService {
       });
       return true;
     } catch (e) {
-      // TODO: Add proper logging
       return false;
     }
   }
@@ -109,9 +125,7 @@ class DatabaseService {
     try {
       await _db.runTransaction((t) async {
         final snap = await t.get(userRef);
-        if (!snap.exists) {
-          throw Exception("User not found");
-        }
+        if (!snap.exists) throw Exception("User not found");
 
         final data = snap.data() as Map<String, dynamic>;
         int currentGold = data['gold'] ?? 0;
@@ -128,7 +142,6 @@ class DatabaseService {
       });
       return true;
     } catch (e) {
-      // TODO: Add proper logging
       return false;
     }
   }
