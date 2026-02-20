@@ -21,21 +21,40 @@ class BattleScreen extends StatefulWidget {
 }
 
 class _BattleScreenState extends State<BattleScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final AiService _ai = AiService();
   final DatabaseService _db = DatabaseService();
 
-  String _narrative = "The enemy draws near...";
-  bool _isFighting = false;
-  bool _hasFought = false;
-  bool _didWin = false;
+  // Battle State
+  late int _maxHeroHp;
+  late int _currentHeroHp;
+  late int _maxBossHp;
+  late int _currentBossHp;
 
-  late AnimationController _controller;
+  bool _isPlayerTurn = true;
+  bool _battleOver = false;
+  bool _isLoading = true;
+  String _narrative = "The enemy draws near...";
+
+  // "Juice" Controls
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
+  late AnimationController _bossPulseController;
+
+  final List<String> _battleLog = [];
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _initializeBattle();
+
+    _shakeController = AnimationController(
+        duration: const Duration(milliseconds: 400), vsync: this);
+    _shakeAnimation =
+        Tween<double>(begin: 0, end: 1.0).animate(_shakeController);
+
+    _bossPulseController = AnimationController(
         vsync: this,
         duration: const Duration(seconds: 2),
         lowerBound: 0.95,
@@ -45,178 +64,349 @@ class _BattleScreenState extends State<BattleScreen>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _shakeController.dispose();
+    _bossPulseController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  void _startBattle() async {
+  Future<void> _initializeBattle() async {
+    _maxHeroHp = 50 + (widget.userLvl * 10);
+    _currentHeroHp = _maxHeroHp;
+
+    // Fix: Zone level is inside the map, not the map itself
+    int bossLvl = widget.zone['reqLvl'] ?? 1;
+    _maxBossHp = 80 + (bossLvl * 15);
+    _currentBossHp = _maxBossHp;
+
+    // Fixed AI call to match your actual Service method
+    final taunt = await _ai.generateBattleNarration(
+      heroClass: widget.userClass,
+      heroLevel: widget.userLvl,
+      bossName: widget.zone['boss'],
+      bossLevel: bossLvl,
+      didWin: true, // Placeholder for start
+      intensity: "Beginning",
+    );
+
+    if (mounted) {
+      setState(() {
+        _log("BOSS: $taunt");
+        _log("Battle Start! Player turn.");
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _playerAction(String action) {
+    if (!_isPlayerTurn || _battleOver) return;
+
+    setState(() => _isPlayerTurn = false);
+
+    int dmg = 0;
+    String logMsg = "";
+
+    if (action == "ATTACK") {
+      dmg = (10 + widget.userLvl * 2) + Random().nextInt(5);
+      logMsg = "You attacked for $dmg damage!";
+    } else if (action == "HEAL") {
+      int heal = (15 + widget.userLvl * 2);
+      setState(() {
+        _currentHeroHp = (_currentHeroHp + heal).clamp(0, _maxHeroHp);
+      });
+      logMsg = "You healed for $heal HP!";
+    } else if (action == "ULTIMATE") {
+      if (Random().nextBool()) {
+        dmg = (25 + widget.userLvl * 3);
+        logMsg = "CRITICAL HIT! Ultimate deals $dmg damage!";
+      } else {
+        logMsg = "You missed your Ultimate!";
+      }
+    }
+
+    if (dmg > 0) {
+      setState(() {
+        _currentBossHp = (_currentBossHp - dmg).clamp(0, _maxBossHp);
+      });
+    }
+    _log(logMsg);
+
+    if (_currentBossHp <= 0) {
+      _endBattle(true);
+    } else {
+      Future.delayed(const Duration(milliseconds: 1500), _bossTurn);
+    }
+  }
+
+  void _bossTurn() {
+    if (_battleOver) return;
+
+    int bossLevel = widget.zone['reqLvl'] ?? 1;
+    int dmg = (8 + bossLevel * 2) + Random().nextInt(5);
+
     setState(() {
-      _isFighting = true;
-      _narrative = "Clashing with the ${widget.zone['boss']}...";
+      _currentHeroHp = (_currentHeroHp - dmg).clamp(0, _maxHeroHp);
+      _log("${widget.zone['boss']} attacks for $dmg damage!");
+      _shakeController.forward(from: 0);
     });
 
-    final winChance =
-        (50 + (widget.userLvl - widget.zone['reqLvl']) * 10).clamp(5, 95);
-    final roll = Random().nextInt(100);
-    final didWin = roll < winChance;
+    if (_currentHeroHp <= 0) {
+      _endBattle(false);
+    } else {
+      setState(() => _isPlayerTurn = true);
+    }
+  }
 
-    String intensity = didWin
-        ? (winChance - roll > 30 ? 'Flawless' : 'Clutch')
-        : (roll - winChance > 30 ? 'Overwhelming' : 'Solid');
+  Future<void> _endBattle(bool won) async {
+    setState(() => _battleOver = true);
 
-    final narrative = await _ai.generateBattleNarration(
+    final resultText = await _ai.generateBattleNarration(
       heroClass: widget.userClass,
       heroLevel: widget.userLvl,
       bossName: widget.zone['boss'],
       bossLevel: widget.zone['reqLvl'],
-      didWin: didWin,
-      intensity: intensity,
+      didWin: won,
+      intensity: won ? "Victorious" : "Crushing",
     );
 
-    if (didWin) await _db.defeatBoss(widget.zone['id']);
+    _log(resultText);
 
-    if (mounted) {
-      setState(() {
-        _narrative = narrative;
-        _isFighting = false;
-        _hasFought = true;
-        _didWin = didWin;
-      });
+    if (won) {
+      await _db.defeatBoss(widget.zone['id']);
     }
+  }
+
+  void _log(String msg) {
+    setState(() {
+      _battleLog.add(msg);
+      _narrative = msg;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     Color zoneColor = widget.zone['color'] ?? Colors.red;
 
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: Stack(
-        children: [
-          CustomPaint(
-            painter: BattleBackgroundPainter(color: zoneColor),
-            size: Size.infinite,
-          ),
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+    return AnimatedBuilder(
+      animation: _shakeAnimation,
+      builder: (context, child) {
+        double dx = sin(_shakeAnimation.value * pi * 10) * 8;
+        return Transform.translate(
+          offset: Offset(dx, 0),
+          child: Scaffold(
+            extendBodyBehindAppBar: true,
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+            ),
+            body: Stack(
               children: [
-                const Spacer(flex: 2),
-                ScaleTransition(
-                  scale: _controller,
-                  child: Container(
-                    width: 180,
-                    height: 180,
-                    decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.black.withAlpha((255 * 0.5).round()),
-                        boxShadow: [
-                          BoxShadow(
-                              color: zoneColor, blurRadius: 40, spreadRadius: 5)
-                        ],
-                        border: Border.all(color: Colors.white, width: 2)),
-                    child: Icon(Icons.adb,
-                        size: 100, color: zoneColor.withAlpha((255 * 0.9).round())),
-                  ),
+                CustomPaint(
+                  painter: BattleBackgroundPainter(color: zoneColor),
+                  size: Size.infinite,
                 ),
-                const SizedBox(height: 20),
-                Text(widget.zone['boss'].toUpperCase(),
-                    style: GoogleFonts.vt323(
-                        fontSize: 40,
-                        color: Colors.white,
-                        shadows: [
-                          const Shadow(
-                              blurRadius: 10,
-                              color: Colors.black,
-                              offset: Offset(2, 2))
-                        ])),
-                const SizedBox(height: 10),
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(seconds: 1),
-                  tween: Tween<double>(
-                      begin: 1.0, end: _hasFought && _didWin ? 0.0 : 1.0),
-                  builder: (context, value, child) {
-                    return CustomPaint(
-                      size: const Size(200, 20),
-                      painter: HealthBarPainter(
-                          percentage: value, color: Colors.red),
-                    );
-                  },
-                ),
-                const Spacer(),
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  constraints: const BoxConstraints(minHeight: 120),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withAlpha((255 * 0.8).round()),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade800),
-                  ),
-                  child: _isFighting
-                      ? const Center(
-                          child: CircularProgressIndicator(color: Colors.white))
-                      : SingleChildScrollView(
-                          child: Text(
-                            _narrative,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.vt323(
-                                fontSize: 22, color: Colors.white70),
+                SafeArea(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        flex: 4,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(widget.zone['boss'].toString().toUpperCase(),
+                                  style: GoogleFonts.vt323(
+                                      fontSize: 32,
+                                      color: Colors.white,
+                                      shadows: [
+                                        const Shadow(
+                                            blurRadius: 10, color: Colors.black)
+                                      ])),
+                              const SizedBox(height: 10),
+                              _buildHealthBar(
+                                  _currentBossHp, _maxBossHp, Colors.red),
+                              const SizedBox(height: 20),
+                              ScaleTransition(
+                                scale: _bossPulseController,
+                                child: Container(
+                                  width: 150,
+                                  height: 150,
+                                  decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.black.withOpacity(0.5),
+                                      boxShadow: [
+                                        BoxShadow(
+                                            color: zoneColor,
+                                            blurRadius: 40,
+                                            spreadRadius: 5)
+                                      ],
+                                      border: Border.all(
+                                          color: Colors.white, width: 2)),
+                                  child: Icon(Icons.adb,
+                                      size: 80,
+                                      color: zoneColor.withOpacity(0.9)),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                      ),
+                      Container(
+                        height: 120,
+                        width: double.infinity,
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: _isLoading
+                            ? const Center(
+                                child: CircularProgressIndicator(
+                                    color: Colors.amber))
+                            : ListView.builder(
+                                controller: _scrollController,
+                                itemCount: _battleLog.length,
+                                itemBuilder: (context, index) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 4.0),
+                                    child: Text(
+                                      "> ${_battleLog[index]}",
+                                      style: GoogleFonts.vt323(
+                                          color: Colors.white70, fontSize: 18),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text("HERO HP",
+                                      style: GoogleFonts.vt323(
+                                          color: Colors.white, fontSize: 18)),
+                                  Text("$_currentHeroHp / $_maxHeroHp",
+                                      style: GoogleFonts.vt323(
+                                          color: Colors.white, fontSize: 18)),
+                                ],
+                              ),
+                              const SizedBox(height: 5),
+                              _buildHealthBar(
+                                  _currentHeroHp, _maxHeroHp, Colors.green),
+                              const SizedBox(height: 20),
+                              if (!_battleOver)
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    _buildActionButton(
+                                        "ATTACK", Colors.redAccent, "ATTACK"),
+                                    _buildActionButton(
+                                        "HEAL", Colors.greenAccent, "HEAL"),
+                                    _buildActionButton("ULTI",
+                                        Colors.purpleAccent, "ULTIMATE"),
+                                  ],
+                                )
+                              else
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.amber,
+                                        padding: const EdgeInsets.all(16)),
+                                    onPressed: () => Navigator.pop(context),
+                                    child: Text("RETURN TO MAP",
+                                        style: GoogleFonts.vt323(
+                                            fontSize: 24, color: Colors.black)),
+                                  ),
+                                )
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 30),
-                if (!_hasFought)
-                  _buildActionButton(
-                      "FIGHT BOSS", Colors.redAccent, _startBattle)
-                else
-                  _buildActionButton(
-                      _didWin ? "CLAIM VICTORY" : "RETREAT",
-                      _didWin ? Colors.amber : Colors.grey,
-                      () => Navigator.pop(context)),
-                const Spacer(),
               ],
             ),
           ),
-        ],
+        );
+      },
+    );
+  }
+
+  Widget _buildHealthBar(int current, int max, Color color) {
+    double percentage = (current / max).clamp(0.0, 1.0);
+    return Container(
+      height: 15,
+      width: 200,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade800,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.white30),
+      ),
+      alignment: Alignment.centerLeft,
+      child: AnimatedFractionallySizedBox(
+        duration: const Duration(milliseconds: 300),
+        widthFactor: percentage,
+        child: Container(
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildActionButton(String label, Color color, VoidCallback onTap) {
+  Widget _buildActionButton(String label, Color color, String actionType) {
+    bool disabled = !_isPlayerTurn || _battleOver;
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-        decoration: BoxDecoration(
-            color: color,
+      onTap: disabled ? null : () => _playerAction(actionType),
+      child: Opacity(
+        opacity: disabled ? 0.5 : 1.0,
+        child: Container(
+          width: 90,
+          height: 60,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.8),
             borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                  color: color.withAlpha((255 * 0.5).round()),
-                  blurRadius: 15,
-                  offset: const Offset(0, 4))
-            ],
-            border: Border.all(color: Colors.white, width: 2)),
-        child: Text(label,
-            style: GoogleFonts.vt323(
-                fontSize: 28,
-                color: Colors.white,
-                fontWeight: FontWeight.bold)),
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          child: Center(
+            child: Text(label,
+                style: GoogleFonts.vt323(
+                    fontSize: 22,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ),
       ),
     );
   }
 }
-
-// --- CUSTOM PAINTERS ---
 
 class BattleBackgroundPainter extends CustomPainter {
   final Color color;
@@ -230,56 +420,22 @@ class BattleBackgroundPainter extends CustomPainter {
 
     final gradientPaint = Paint()
       ..shader = RadialGradient(
-        colors: [color.withAlpha((255 * 0.25).round()), Colors.transparent],
+        colors: [color.withOpacity(0.3), Colors.transparent],
         radius: 1.0,
       ).createShader(rect);
 
     canvas.drawRect(rect, gradientPaint);
 
     final linePaint = Paint()
-      ..color = color.withAlpha((255 * 0.1).round())
+      ..color = color.withOpacity(0.1)
       ..strokeWidth = 1.5;
 
-    // Floor Grid Effect
-    for (double i = 0; i < size.width; i += 50) {
+    for (double i = 0; i < size.width; i += 40) {
       canvas.drawLine(Offset(i, size.height),
-          Offset(size.width / 2, size.height / 2), linePaint);
+          Offset(size.width / 2, size.height * 0.4), linePaint);
     }
-
-    canvas.drawLine(
-        Offset(0, size.height / 2),
-        Offset(size.width, size.height / 2),
-        Paint()
-          ..color = color.withAlpha((255 * 0.3).round())
-          ..strokeWidth = 2);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class HealthBarPainter extends CustomPainter {
-  final double percentage;
-  final Color color;
-
-  HealthBarPainter({required this.percentage, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()..color = Colors.grey.shade900;
-    final fillPaint = Paint()..color = color;
-    final borderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    canvas.drawRect(rect, bgPaint);
-    canvas.drawRect(
-        Rect.fromLTWH(0, 0, size.width * percentage, size.height), fillPaint);
-    canvas.drawRect(rect, borderPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant HealthBarPainter oldDelegate) => true;
 }
