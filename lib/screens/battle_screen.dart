@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:confetti/confetti.dart'; // <--- NEW
 import '../services/ai_service.dart';
 import '../services/database_service.dart';
 import 'dart:math';
@@ -33,6 +34,7 @@ class _BattleScreenState extends State<BattleScreen>
 
   bool _isPlayerTurn = true;
   bool _battleOver = false;
+  bool _didWin = false; // <--- NEW: Tracks if the player won
   bool _isLoading = true;
   String _narrative = "The enemy draws near...";
 
@@ -40,6 +42,9 @@ class _BattleScreenState extends State<BattleScreen>
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
   late AnimationController _bossPulseController;
+  late AnimationController _fadeController; // <--- NEW: For victory screen
+  late Animation<double> _fadeAnimation;
+  late ConfettiController _confettiController; // <--- NEW
 
   final List<String> _battleLog = [];
   final ScrollController _scrollController = ScrollController();
@@ -60,12 +65,21 @@ class _BattleScreenState extends State<BattleScreen>
         lowerBound: 0.95,
         upperBound: 1.05)
       ..repeat(reverse: true);
+
+    _fadeController = AnimationController(
+        duration: const Duration(seconds: 1), vsync: this);
+    _fadeAnimation =
+        CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+    _confettiController =
+        ConfettiController(duration: const Duration(seconds: 10));
   }
 
   @override
   void dispose() {
     _shakeController.dispose();
     _bossPulseController.dispose();
+    _fadeController.dispose();
+    _confettiController.dispose(); // <--- NEW
     _scrollController.dispose();
     super.dispose();
   }
@@ -158,7 +172,10 @@ class _BattleScreenState extends State<BattleScreen>
   }
 
   Future<void> _endBattle(bool won) async {
-    setState(() => _battleOver = true);
+    setState(() {
+      _battleOver = true;
+      _didWin = won; // Set the win status
+    });
 
     final resultText = await _ai.generateBattleNarration(
       heroClass: widget.userClass,
@@ -173,6 +190,8 @@ class _BattleScreenState extends State<BattleScreen>
 
     if (won) {
       await _db.defeatBoss(widget.zone['id']);
+      _fadeController.forward(); // Trigger the victory screen animation
+      _confettiController.play(); // <--- NEW: Play confetti
     }
   }
 
@@ -221,49 +240,7 @@ class _BattleScreenState extends State<BattleScreen>
                 SafeArea(
                   child: Column(
                     children: [
-                      Expanded(
-                        flex: 4,
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(widget.zone['boss'].toString().toUpperCase(),
-                                  style: GoogleFonts.vt323(
-                                      fontSize: 32,
-                                      color: Colors.white,
-                                      shadows: [
-                                        const Shadow(
-                                            blurRadius: 10, color: Colors.black)
-                                      ])),
-                              const SizedBox(height: 10),
-                              _buildHealthBar(
-                                  _currentBossHp, _maxBossHp, Colors.red),
-                              const SizedBox(height: 20),
-                              ScaleTransition(
-                                scale: _bossPulseController,
-                                child: Container(
-                                  width: 150,
-                                  height: 150,
-                                  decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.black.withOpacity(0.5),
-                                      boxShadow: [
-                                        BoxShadow(
-                                            color: zoneColor,
-                                            blurRadius: 40,
-                                            spreadRadius: 5)
-                                      ],
-                                      border: Border.all(
-                                          color: Colors.white, width: 2)),
-                                  child: Icon(Icons.adb,
-                                      size: 80,
-                                      color: zoneColor.withOpacity(0.9)),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                      Expanded(flex: 4, child: _buildBossDisplay(zoneColor)),
                       Container(
                         height: 120,
                         width: double.infinity,
@@ -283,69 +260,37 @@ class _BattleScreenState extends State<BattleScreen>
                                 itemCount: _battleLog.length,
                                 itemBuilder: (context, index) {
                                   return Padding(
-                                    padding: const EdgeInsets.only(bottom: 4.0),
+                                    padding:
+                                        const EdgeInsets.only(bottom: 4.0),
                                     child: Text(
                                       "> ${_battleLog[index]}",
                                       style: GoogleFonts.vt323(
-                                          color: Colors.white70, fontSize: 18),
+                                          color: Colors.white70,
+                                          fontSize: 18),
                                     ),
                                   );
                                 },
                               ),
                       ),
-                      Expanded(
-                        flex: 3,
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text("HERO HP",
-                                      style: GoogleFonts.vt323(
-                                          color: Colors.white, fontSize: 18)),
-                                  Text("$_currentHeroHp / $_maxHeroHp",
-                                      style: GoogleFonts.vt323(
-                                          color: Colors.white, fontSize: 18)),
-                                ],
-                              ),
-                              const SizedBox(height: 5),
-                              _buildHealthBar(
-                                  _currentHeroHp, _maxHeroHp, Colors.green),
-                              const SizedBox(height: 20),
-                              if (!_battleOver)
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    _buildActionButton(
-                                        "ATTACK", Colors.redAccent, "ATTACK"),
-                                    _buildActionButton(
-                                        "HEAL", Colors.greenAccent, "HEAL"),
-                                    _buildActionButton("ULTI",
-                                        Colors.purpleAccent, "ULTIMATE"),
-                                  ],
-                                )
-                              else
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.amber,
-                                        padding: const EdgeInsets.all(16)),
-                                    onPressed: () => Navigator.pop(context),
-                                    child: Text("RETURN TO MAP",
-                                        style: GoogleFonts.vt323(
-                                            fontSize: 24, color: Colors.black)),
-                                  ),
-                                )
-                            ],
-                          ),
-                        ),
-                      ),
+                      Expanded(flex: 3, child: _buildPlayerControls()),
+                    ],
+                  ),
+                ),
+                if (_didWin) _buildVictoryOverlay(), // <--- NEW
+
+                // --- Confetti for Victory ---
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: ConfettiWidget(
+                    confettiController: _confettiController,
+                    blastDirectionality: BlastDirectionality.explosive,
+                    shouldLoop: false,
+                    colors: const [
+                      Colors.green,
+                      Colors.blue,
+                      Colors.pink,
+                      Colors.orange,
+                      Colors.purple
                     ],
                   ),
                 ),
@@ -354,6 +299,101 @@ class _BattleScreenState extends State<BattleScreen>
           ),
         );
       },
+    );
+  }
+
+  // <--- NEW: Boss Display Area
+  Widget _buildBossDisplay(Color zoneColor) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            widget.zone['boss'].toString().toUpperCase(),
+            style: GoogleFonts.vt323(
+              fontSize: 32,
+              color: Colors.white,
+              shadows: [const Shadow(blurRadius: 10, color: Colors.black)],
+            ),
+          ),
+          const SizedBox(height: 10),
+          _buildHealthBar(_currentBossHp, _maxBossHp, Colors.red),
+          const SizedBox(height: 20),
+          ScaleTransition(
+            scale: _bossPulseController,
+            child: Container(
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withOpacity(0.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: zoneColor,
+                    blurRadius: 40,
+                    spreadRadius: 5,
+                  ),
+                ],
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child:
+                  Icon(Icons.adb, size: 80, color: zoneColor.withOpacity(0.9)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // <--- NEW: Player Controls Area
+  Widget _buildPlayerControls() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "HERO HP",
+                style: GoogleFonts.vt323(color: Colors.white, fontSize: 18),
+              ),
+              Text(
+                "$_currentHeroHp / $_maxHeroHp",
+                style: GoogleFonts.vt323(color: Colors.white, fontSize: 18),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          _buildHealthBar(_currentHeroHp, _maxHeroHp, Colors.green),
+          const SizedBox(height: 20),
+          if (!_battleOver)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildActionButton("ATTACK", Colors.redAccent, "ATTACK"),
+                _buildActionButton("HEAL", Colors.greenAccent, "HEAL"),
+                _buildActionButton("ULTI", Colors.purpleAccent, "ULTIMATE"),
+              ],
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  padding: const EdgeInsets.all(16),
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  "RETURN TO MAP",
+                  style: GoogleFonts.vt323(fontSize: 24, color: Colors.black),
+                ),
+              ),
+            )
+        ],
+      ),
     );
   }
 
@@ -404,6 +444,106 @@ class _BattleScreenState extends State<BattleScreen>
           ),
         ),
       ),
+    );
+  }
+  // <--- NEW: Victory Screen Overlay
+  Widget _buildVictoryOverlay() {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: Container(
+        color: Colors.black.withOpacity(0.85),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  "VICTORY!",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.vt323(
+                    fontSize: 60,
+                    color: Colors.amber,
+                    shadows: [
+                      const Shadow(blurRadius: 20, color: Colors.amber)
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white10,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Text(
+                    _narrative, // Show the final AI story
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.vt323(
+                      fontSize: 20,
+                      color: Colors.white,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 30),
+                Text(
+                  "SPOILS",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.vt323(fontSize: 28, color: Colors.grey),
+                ),
+                const SizedBox(height: 10),
+                _buildSpoils(),
+                const Spacer(),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    "RETURN TO MAP",
+                    style: GoogleFonts.vt323(fontSize: 24, color: Colors.black),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpoils() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black38,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _spoilItem(Icons.star, "+200 XP", Colors.lightBlueAccent),
+          _spoilItem(Icons.monetization_on, "+100 G", Colors.yellow),
+        ],
+      ),
+    );
+  }
+
+  Widget _spoilItem(IconData icon, String text, Color color) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: GoogleFonts.vt323(fontSize: 22, color: Colors.white),
+        ),
+      ],
     );
   }
 }
