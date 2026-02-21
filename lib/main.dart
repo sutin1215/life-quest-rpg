@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/character_creation_screen.dart';
 import 'services/database_service.dart';
@@ -9,10 +10,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Load the .env file so AiService can read GEMINI_API_KEY
   await dotenv.load(fileName: ".env");
-
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const LifeQuestRPG());
 }
@@ -27,7 +25,8 @@ class LifeQuestRPG extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme:
           ThemeData(brightness: Brightness.dark, primarySwatch: Colors.amber),
-      home: const AuthWrapper(),
+      // IMPROVEMENT #1: Show splash screen first, then auth wrapper
+      home: SplashScreen(nextScreen: const AuthWrapper()),
     );
   }
 }
@@ -66,8 +65,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Widget build(BuildContext context) {
     if (FirebaseAuth.instance.currentUser == null || _isSigningIn) {
       return const Scaffold(
-        backgroundColor: Color(0xFF1A1A1A),
-        body: Center(child: CircularProgressIndicator(color: Colors.amber)),
+        backgroundColor: Color(0xFF0D1B2A),
+        body:
+            Center(child: CircularProgressIndicator(color: Color(0xFFC9A84C))),
       );
     }
 
@@ -76,7 +76,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return const Scaffold(
-            backgroundColor: Color(0xFF1A1A1A),
+            backgroundColor: Color(0xFF0D1B2A),
             body: Center(
               child: Text(
                 'Connection error.\nPlease restart the app.',
@@ -88,9 +88,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-              backgroundColor: Color(0xFF1A1A1A),
-              body: Center(
-                  child: CircularProgressIndicator(color: Colors.amber)));
+            backgroundColor: Color(0xFF0D1B2A),
+            body: Center(
+                child: CircularProgressIndicator(color: Color(0xFFC9A84C))),
+          );
         }
         if (snapshot.hasData && snapshot.data!.exists) {
           return const HomeScreen();

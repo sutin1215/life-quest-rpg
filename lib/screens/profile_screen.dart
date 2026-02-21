@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/ai_service.dart';
 import '../services/database_service.dart';
+import '../theme/rpg_theme.dart';
+import '../widgets/glowing_stat_badge.dart';
 import 'home_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -12,37 +14,49 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with SingleTickerProviderStateMixin {
   final _db = DatabaseService();
   final _ai = AiService();
   bool _isLoading = false;
 
+  late AnimationController _shimmerCtrl;
+  late Animation<double> _shimmer;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerCtrl =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2))
+          ..repeat(reverse: true);
+    _shimmer = Tween(begin: 0.3, end: 1.0).animate(_shimmerCtrl);
+  }
+
+  @override
+  void dispose() {
+    _shimmerCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _generateQuestsAndBegin(Map<String, dynamic> userData) async {
     setState(() => _isLoading = true);
-
     final bio = userData['bio'] ?? '';
     final mainQuest = userData['mainQuest'] ?? 'Achieve my goals';
-
-    // FIX #7: addQuests now guards against duplicates internally
     final quests = await _ai.generateStarterQuests(bio, mainQuest);
     await _db.addQuests(quests);
-
     if (mounted) {
       Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
+          context, MaterialPageRoute(builder: (_) => const HomeScreen()));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
+      backgroundColor: RpgTheme.backgroundDark,
       body: StreamBuilder<DocumentSnapshot>(
         stream: _db.getUserStats(),
         builder: (context, snapshot) {
-          // FIX: Handle error state
           if (snapshot.hasError) {
             return Center(
               child: Padding(
@@ -53,14 +67,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const Icon(Icons.error_outline,
                         color: Colors.redAccent, size: 48),
                     const SizedBox(height: 16),
-                    Text("Could not load hero data.",
+                    Text('Could not load hero data.',
                         style: GoogleFonts.vt323(
                             fontSize: 24, color: Colors.redAccent)),
-                    const SizedBox(height: 8),
-                    Text("Check your connection and restart.",
-                        style: GoogleFonts.vt323(
-                            fontSize: 18, color: Colors.white54),
-                        textAlign: TextAlign.center),
                   ],
                 ),
               ),
@@ -69,171 +78,156 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           if (!snapshot.hasData || !snapshot.data!.exists) {
             return const Center(
-                child: CircularProgressIndicator(color: Colors.amber));
+                child: CircularProgressIndicator(color: RpgTheme.goldPrimary));
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
           final String className = data['className'] ?? 'Unknown Hero';
           final String story =
               data['story'] ?? 'Your legend is yet to be written...';
-          final String pixelAvatarUrl =
-              "https://api.dicebear.com/9.x/pixel-art/png?seed=$className";
+          final String avatarUrl =
+              'https://api.dicebear.com/9.x/pixel-art/png?seed=$className';
 
-          // Determine if this is the reveal screen (coming from character
-          // creation) or the in-game profile tab.
-          // If quests exist, we are in-game; show a profile card instead.
           final bool isRevealMode = data['currentZone'] == null ||
-              data['currentZone'] == 1 &&
-                  (data['level'] == null || data['level'] == 1);
+              (data['currentZone'] == 1 &&
+                  (data['level'] == null || data['level'] == 1));
 
           return SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 20),
-                  Text(
-                    isRevealMode ? "HERO AWAKENED" : "HERO PROFILE",
-                    style: GoogleFonts.vt323(fontSize: 40, color: Colors.amber),
-                  ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 12),
 
-                  // Avatar
-                  Container(
-                    width: 180,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.amber, width: 4),
-                      borderRadius: BorderRadius.circular(12),
-                      color: Colors.black54,
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.amber.withAlpha(77), blurRadius: 20),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        pixelAvatarUrl,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return const Center(
-                              child: CircularProgressIndicator(
-                                  color: Colors.amber));
-                        },
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.person,
-                                size: 80, color: Colors.white),
+                  // Header
+                  AnimatedBuilder(
+                    animation: _shimmer,
+                    builder: (_, __) => Text(
+                      isRevealMode ? 'HERO AWAKENED' : 'HERO PROFILE',
+                      style: GoogleFonts.vt323(
+                        fontSize: 38,
+                        color: RpgTheme.goldPrimary,
+                        shadows: [
+                          Shadow(
+                            blurRadius: 16,
+                            color: RpgTheme.goldPrimary
+                                .withOpacity(_shimmer.value),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
 
+                  const SizedBox(height: 24),
+
+                  // Avatar with decorative border
+                  _buildAvatar(avatarUrl),
+
+                  const SizedBox(height: 16),
+
+                  // Class name
                   Text(className.toUpperCase(),
-                      style:
-                          GoogleFonts.vt323(fontSize: 32, color: Colors.white)),
+                      style: GoogleFonts.vt323(
+                          fontSize: 32, color: RpgTheme.textPrimary)),
                   const SizedBox(height: 4),
+                  Text('Level ${data['level'] ?? 1}',
+                      style: GoogleFonts.vt323(
+                          fontSize: 22, color: RpgTheme.goldPrimary)),
 
-                  // IMPROVEMENT: Show level in profile
-                  Text("Level ${data['level'] ?? 1}",
-                      style:
-                          GoogleFonts.vt323(fontSize: 22, color: Colors.amber)),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 16),
 
-                  // Stats row
+                  // IMPROVEMENT #8: Glowing animated stat badges
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildStatBadge(
-                          "STR", data['str'] ?? 0, Colors.redAccent),
-                      const SizedBox(width: 15),
-                      _buildStatBadge(
-                          "INT", data['int'] ?? 0, Colors.blueAccent),
-                      const SizedBox(width: 15),
-                      _buildStatBadge(
-                          "DEX", data['dex'] ?? 0, Colors.greenAccent),
+                      GlowingStatBadge(
+                          label: 'STR',
+                          value: data['str'] ?? 0,
+                          color: RpgTheme.strColor),
+                      const SizedBox(width: 12),
+                      GlowingStatBadge(
+                          label: 'INT',
+                          value: data['int'] ?? 0,
+                          color: RpgTheme.intColor),
+                      const SizedBox(width: 12),
+                      GlowingStatBadge(
+                          label: 'DEX',
+                          value: data['dex'] ?? 0,
+                          color: RpgTheme.dexColor),
                     ],
                   ),
-                  const SizedBox(height: 20),
+
+                  const SizedBox(height: 16),
 
                   // XP Bar
                   _buildXpBar(data),
                   const SizedBox(height: 20),
 
-                  // Main Quest reminder
+                  // Main Quest card
                   if (data['mainQuest'] != null) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border:
-                            Border.all(color: Colors.amber.withOpacity(0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("MAIN QUEST",
-                              style: GoogleFonts.vt323(
-                                  fontSize: 18, color: Colors.amber)),
-                          Text(data['mainQuest'],
-                              style: GoogleFonts.vt323(
-                                  fontSize: 18,
-                                  color: Colors.white,
-                                  height: 1.3)),
-                        ],
-                      ),
+                    _buildInfoCard(
+                      title: 'MAIN QUEST',
+                      content: data['mainQuest'],
+                      accentColor: RpgTheme.goldPrimary,
+                      icon: Icons.flag,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                   ],
 
                   // Origin Story
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white10,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("ORIGIN STORY",
-                            style: GoogleFonts.vt323(
-                                fontSize: 22, color: Colors.grey)),
-                        const SizedBox(height: 8),
-                        Text(
-                          story,
-                          style: GoogleFonts.vt323(
-                              fontSize: 20, color: Colors.white, height: 1.4),
-                        ),
-                      ],
-                    ),
+                  _buildInfoCard(
+                    title: 'ORIGIN STORY',
+                    content: story,
+                    accentColor: RpgTheme.textMuted,
+                    icon: Icons.auto_stories,
                   ),
-                  const SizedBox(height: 20),
 
-                  // Only show "BEGIN JOURNEY" on the reveal screen
+                  const SizedBox(height: 24),
+
                   if (isRevealMode)
                     SizedBox(
                       width: double.infinity,
                       child: _isLoading
-                          ? const Center(
-                              child: CircularProgressIndicator(
-                                  color: Colors.amber))
-                          : ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.amber,
+                          ? Column(
+                              children: [
+                                const CircularProgressIndicator(
+                                    color: RpgTheme.goldPrimary),
+                                const SizedBox(height: 12),
+                                Text('The Fate Weaver prepares your quests...',
+                                    style: GoogleFonts.vt323(
+                                        fontSize: 18,
+                                        color: RpgTheme.textMuted)),
+                              ],
+                            )
+                          : GestureDetector(
+                              onTap: () => _generateQuestsAndBegin(data),
+                              child: Container(
                                 padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
+                                    const EdgeInsets.symmetric(vertical: 18),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      RpgTheme.goldPrimary,
+                                      Color(0xFFE8A838)
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                        color: RpgTheme.goldPrimary
+                                            .withOpacity(0.5),
+                                        blurRadius: 16,
+                                        spreadRadius: 2),
+                                  ],
+                                ),
+                                child: Text('BEGIN JOURNEY',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.vt323(
+                                        fontSize: 26,
+                                        color: Colors.black,
+                                        letterSpacing: 2)),
                               ),
-                              onPressed: () => _generateQuestsAndBegin(data),
-                              child: Text("BEGIN JOURNEY",
-                                  style: GoogleFonts.vt323(
-                                      fontSize: 24, color: Colors.black)),
                             ),
                     ),
                 ],
@@ -245,50 +239,107 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildAvatar(String url) {
+    return AnimatedBuilder(
+      animation: _shimmer,
+      builder: (_, __) => Container(
+        width: 160,
+        height: 160,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: RpgTheme.goldPrimary.withOpacity(_shimmer.value),
+            width: 3,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: RpgTheme.goldPrimary.withOpacity(_shimmer.value * 0.4),
+              blurRadius: 24,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.network(
+            url,
+            fit: BoxFit.cover,
+            loadingBuilder: (_, child, progress) {
+              if (progress == null) return child;
+              return const Center(
+                  child:
+                      CircularProgressIndicator(color: RpgTheme.goldPrimary));
+            },
+            errorBuilder: (_, __, ___) =>
+                const Icon(Icons.person, size: 80, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildXpBar(Map<String, dynamic> data) {
     final int lvl = data['level'] ?? 1;
     final int xp = data['xp'] ?? 0;
     final int xpNeeded = lvl * 100;
     final double progress = (xp / xpNeeded).clamp(0.0, 1.0);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text("XP",
-              style: GoogleFonts.vt323(color: Colors.amber, fontSize: 16)),
-          Text("$xp / $xpNeeded",
-              style: GoogleFonts.vt323(color: Colors.white54, fontSize: 16)),
-        ]),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: progress,
-            backgroundColor: Colors.grey.shade800,
-            valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
-            minHeight: 10,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: RpgTheme.parchmentDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('EXPERIENCE',
+                style: GoogleFonts.vt323(
+                    color: RpgTheme.goldPrimary, fontSize: 16)),
+            Text('$xp / $xpNeeded XP',
+                style:
+                    GoogleFonts.vt323(color: RpgTheme.textMuted, fontSize: 15)),
+          ]),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.black45,
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(RpgTheme.goldPrimary),
+              minHeight: 12,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildStatBadge(String label, int value, Color color) {
-    return Column(
-      children: [
-        Text(label, style: GoogleFonts.vt323(color: color, fontSize: 18)),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: color.withAlpha(51),
-            border: Border.all(color: color),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text("$value",
-              style: GoogleFonts.vt323(fontSize: 22, color: Colors.white)),
-        ),
-      ],
+  Widget _buildInfoCard({
+    required String title,
+    required String content,
+    required Color accentColor,
+    required IconData icon,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: RpgTheme.cardDecoration(borderColor: accentColor),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(icon, color: accentColor, size: 16),
+            const SizedBox(width: 6),
+            Text(title,
+                style: GoogleFonts.vt323(
+                    fontSize: 18, color: accentColor, letterSpacing: 1)),
+          ]),
+          const SizedBox(height: 8),
+          Text(content,
+              style: GoogleFonts.vt323(
+                  fontSize: 19, color: RpgTheme.textPrimary, height: 1.4)),
+        ],
+      ),
     );
   }
 }

@@ -18,10 +18,8 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -39,9 +37,20 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android Studio build artifacts
 /android/app/debug
 /android/app/profile
 /android/app/release
 
+# --- SENSITIVE FILES (DO NOT COMMIT) ---
+# Environment variables containing API Keys
 .env
+.env.*
+
+# Firebase Configuration files (These contain your leaked API keys)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# Local properties
+/android/local.properties
+/android/key.properties
