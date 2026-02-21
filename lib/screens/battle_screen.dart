@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:confetti/confetti.dart'; // <--- NEW
+import 'package:confetti/confetti.dart';
 import '../services/ai_service.dart';
 import '../services/database_service.dart';
 import 'dart:math';
@@ -9,12 +9,19 @@ class BattleScreen extends StatefulWidget {
   final Map<String, dynamic> zone;
   final int userLvl;
   final String userClass;
+  // IMPROVEMENT: Accept player stats so combat uses them
+  final int userStr;
+  final int userInt;
+  final int userDex;
 
   const BattleScreen({
     super.key,
     required this.zone,
     required this.userLvl,
     required this.userClass,
+    this.userStr = 5,
+    this.userInt = 5,
+    this.userDex = 5,
   });
 
   @override
@@ -34,17 +41,21 @@ class _BattleScreenState extends State<BattleScreen>
 
   bool _isPlayerTurn = true;
   bool _battleOver = false;
-  bool _didWin = false; // <--- NEW: Tracks if the player won
+  bool _didWin = false;
   bool _isLoading = true;
+  // IMPROVEMENT: Track whether spoils were actually saved
+  bool _spoilsSaved = false;
   String _narrative = "The enemy draws near...";
+  // IMPROVEMENT: Track battle turns for mid-battle taunt trigger
+  int _turnCount = 0;
+  bool _midBattleTauntShown = false;
 
-  // "Juice" Controls
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
   late AnimationController _bossPulseController;
-  late AnimationController _fadeController; // <--- NEW: For victory screen
+  late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-  late ConfettiController _confettiController; // <--- NEW
+  late ConfettiController _confettiController;
 
   final List<String> _battleLog = [];
   final ScrollController _scrollController = ScrollController();
@@ -66,8 +77,8 @@ class _BattleScreenState extends State<BattleScreen>
         upperBound: 1.05)
       ..repeat(reverse: true);
 
-    _fadeController = AnimationController(
-        duration: const Duration(seconds: 1), vsync: this);
+    _fadeController =
+        AnimationController(duration: const Duration(seconds: 1), vsync: this);
     _fadeAnimation =
         CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
     _confettiController =
@@ -79,34 +90,34 @@ class _BattleScreenState extends State<BattleScreen>
     _shakeController.dispose();
     _bossPulseController.dispose();
     _fadeController.dispose();
-    _confettiController.dispose(); // <--- NEW
+    _confettiController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
+
+  // FIX #4: bossLevel uses null-safe fallback `?? 1`
+  int get _bossLevel => widget.zone['reqLvl'] as int? ?? 1;
 
   Future<void> _initializeBattle() async {
     _maxHeroHp = 50 + (widget.userLvl * 10);
     _currentHeroHp = _maxHeroHp;
 
-    // Fix: Zone level is inside the map, not the map itself
-    int bossLvl = widget.zone['reqLvl'] ?? 1;
-    _maxBossHp = 80 + (bossLvl * 15);
+    _maxBossHp = 80 + (_bossLevel * 15);
     _currentBossHp = _maxBossHp;
 
-    // Fixed AI call to match your actual Service method
     final taunt = await _ai.generateBattleNarration(
       heroClass: widget.userClass,
       heroLevel: widget.userLvl,
-      bossName: widget.zone['boss'],
-      bossLevel: bossLvl,
-      didWin: true, // Placeholder for start
+      bossName: widget.zone['boss'] as String? ?? 'Boss',
+      bossLevel: _bossLevel,
+      didWin: true,
       intensity: "Beginning",
     );
 
     if (mounted) {
       setState(() {
         _log("BOSS: $taunt");
-        _log("Battle Start! Player turn.");
+        _log("Battle Start! Your turn.");
         _isLoading = false;
       });
     }
@@ -114,24 +125,28 @@ class _BattleScreenState extends State<BattleScreen>
 
   void _playerAction(String action) {
     if (!_isPlayerTurn || _battleOver) return;
-
     setState(() => _isPlayerTurn = false);
 
     int dmg = 0;
     String logMsg = "";
 
     if (action == "ATTACK") {
-      dmg = (10 + widget.userLvl * 2) + Random().nextInt(5);
+      // IMPROVEMENT: STR now affects attack damage
+      dmg = (10 + widget.userLvl * 2 + widget.userStr) + Random().nextInt(5);
       logMsg = "You attacked for $dmg damage!";
     } else if (action == "HEAL") {
-      int heal = (15 + widget.userLvl * 2);
+      // IMPROVEMENT: INT now affects heal power
+      int heal = (15 + widget.userLvl * 2 + widget.userInt);
       setState(() {
         _currentHeroHp = (_currentHeroHp + heal).clamp(0, _maxHeroHp);
       });
       logMsg = "You healed for $heal HP!";
     } else if (action == "ULTIMATE") {
-      if (Random().nextBool()) {
-        dmg = (25 + widget.userLvl * 3);
+      // IMPROVEMENT: DEX affects crit chance
+      double critChance =
+          0.4 + (widget.userDex * 0.02); // base 40% + 2% per DEX
+      if (Random().nextDouble() < critChance) {
+        dmg = (25 + widget.userLvl * 3 + widget.userStr * 2);
         logMsg = "CRITICAL HIT! Ultimate deals $dmg damage!";
       } else {
         logMsg = "You missed your Ultimate!";
@@ -145,6 +160,11 @@ class _BattleScreenState extends State<BattleScreen>
     }
     _log(logMsg);
 
+    // IMPROVEMENT: Mid-battle taunt when boss drops below 50% HP
+    _checkMidBattleTaunt();
+
+    _turnCount++;
+
     if (_currentBossHp <= 0) {
       _endBattle(true);
     } else {
@@ -152,11 +172,30 @@ class _BattleScreenState extends State<BattleScreen>
     }
   }
 
+  void _checkMidBattleTaunt() {
+    if (!_midBattleTauntShown &&
+        _currentBossHp < _maxBossHp * 0.5 &&
+        !_battleOver) {
+      _midBattleTauntShown = true;
+      _ai
+          .generateBattleNarration(
+        heroClass: widget.userClass,
+        heroLevel: widget.userLvl,
+        bossName: widget.zone['boss'] as String? ?? 'Boss',
+        bossLevel: _bossLevel,
+        didWin: false,
+        intensity: "MidBattle",
+      )
+          .then((taunt) {
+        if (mounted) _log("BOSS: $taunt");
+      });
+    }
+  }
+
   void _bossTurn() {
     if (_battleOver) return;
 
-    int bossLevel = widget.zone['reqLvl'] ?? 1;
-    int dmg = (8 + bossLevel * 2) + Random().nextInt(5);
+    int dmg = (8 + _bossLevel * 2) + Random().nextInt(5);
 
     setState(() {
       _currentHeroHp = (_currentHeroHp - dmg).clamp(0, _maxHeroHp);
@@ -174,14 +213,14 @@ class _BattleScreenState extends State<BattleScreen>
   Future<void> _endBattle(bool won) async {
     setState(() {
       _battleOver = true;
-      _didWin = won; // Set the win status
+      _didWin = won;
     });
 
     final resultText = await _ai.generateBattleNarration(
       heroClass: widget.userClass,
       heroLevel: widget.userLvl,
-      bossName: widget.zone['boss'],
-      bossLevel: widget.zone['reqLvl'],
+      bossName: widget.zone['boss'] as String? ?? 'Boss',
+      bossLevel: _bossLevel, // FIX #4: uses null-safe getter
       didWin: won,
       intensity: won ? "Victorious" : "Crushing",
     );
@@ -189,13 +228,18 @@ class _BattleScreenState extends State<BattleScreen>
     _log(resultText);
 
     if (won) {
-      await _db.defeatBoss(widget.zone['id']);
-      _fadeController.forward(); // Trigger the victory screen animation
-      _confettiController.play(); // <--- NEW: Play confetti
+      // FIX #3: Only show spoils if defeatBoss actually succeeded
+      final saved = await _db.defeatBoss(widget.zone['id'] as int? ?? 0);
+      if (mounted) {
+        setState(() => _spoilsSaved = saved);
+        _fadeController.forward();
+        _confettiController.play();
+      }
     }
   }
 
   void _log(String msg) {
+    if (!mounted) return;
     setState(() {
       _battleLog.add(msg);
       _narrative = msg;
@@ -213,7 +257,7 @@ class _BattleScreenState extends State<BattleScreen>
 
   @override
   Widget build(BuildContext context) {
-    Color zoneColor = widget.zone['color'] ?? Colors.red;
+    Color zoneColor = widget.zone['color'] as Color? ?? Colors.red;
 
     return AnimatedBuilder(
       animation: _shakeAnimation,
@@ -260,13 +304,11 @@ class _BattleScreenState extends State<BattleScreen>
                                 itemCount: _battleLog.length,
                                 itemBuilder: (context, index) {
                                   return Padding(
-                                    padding:
-                                        const EdgeInsets.only(bottom: 4.0),
+                                    padding: const EdgeInsets.only(bottom: 4.0),
                                     child: Text(
                                       "> ${_battleLog[index]}",
                                       style: GoogleFonts.vt323(
-                                          color: Colors.white70,
-                                          fontSize: 18),
+                                          color: Colors.white70, fontSize: 18),
                                     ),
                                   );
                                 },
@@ -276,9 +318,7 @@ class _BattleScreenState extends State<BattleScreen>
                     ],
                   ),
                 ),
-                if (_didWin) _buildVictoryOverlay(), // <--- NEW
-
-                // --- Confetti for Victory ---
+                if (_didWin) _buildVictoryOverlay(),
                 Align(
                   alignment: Alignment.topCenter,
                   child: ConfettiWidget(
@@ -290,7 +330,7 @@ class _BattleScreenState extends State<BattleScreen>
                       Colors.blue,
                       Colors.pink,
                       Colors.orange,
-                      Colors.purple
+                      Colors.purple,
                     ],
                   ),
                 ),
@@ -302,14 +342,13 @@ class _BattleScreenState extends State<BattleScreen>
     );
   }
 
-  // <--- NEW: Boss Display Area
   Widget _buildBossDisplay(Color zoneColor) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            widget.zone['boss'].toString().toUpperCase(),
+            (widget.zone['boss'] as String? ?? 'BOSS').toUpperCase(),
             style: GoogleFonts.vt323(
               fontSize: 32,
               color: Colors.white,
@@ -345,7 +384,6 @@ class _BattleScreenState extends State<BattleScreen>
     );
   }
 
-  // <--- NEW: Player Controls Area
   Widget _buildPlayerControls() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -355,14 +393,10 @@ class _BattleScreenState extends State<BattleScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                "HERO HP",
-                style: GoogleFonts.vt323(color: Colors.white, fontSize: 18),
-              ),
-              Text(
-                "$_currentHeroHp / $_maxHeroHp",
-                style: GoogleFonts.vt323(color: Colors.white, fontSize: 18),
-              ),
+              Text("HERO HP",
+                  style: GoogleFonts.vt323(color: Colors.white, fontSize: 18)),
+              Text("$_currentHeroHp / $_maxHeroHp",
+                  style: GoogleFonts.vt323(color: Colors.white, fontSize: 18)),
             ],
           ),
           const SizedBox(height: 5),
@@ -372,9 +406,12 @@ class _BattleScreenState extends State<BattleScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildActionButton("ATTACK", Colors.redAccent, "ATTACK"),
-                _buildActionButton("HEAL", Colors.greenAccent, "HEAL"),
-                _buildActionButton("ULTI", Colors.purpleAccent, "ULTIMATE"),
+                _buildActionButton("ATTACK", Colors.redAccent, "ATTACK",
+                    hint: "STR +${widget.userStr}"),
+                _buildActionButton("HEAL", Colors.greenAccent, "HEAL",
+                    hint: "INT +${widget.userInt}"),
+                _buildActionButton("ULTI", Colors.purpleAccent, "ULTIMATE",
+                    hint: "DEX ${(40 + widget.userDex * 2)}%"),
               ],
             )
           else
@@ -391,7 +428,7 @@ class _BattleScreenState extends State<BattleScreen>
                   style: GoogleFonts.vt323(fontSize: 24, color: Colors.black),
                 ),
               ),
-            )
+            ),
         ],
       ),
     );
@@ -421,7 +458,8 @@ class _BattleScreenState extends State<BattleScreen>
     );
   }
 
-  Widget _buildActionButton(String label, Color color, String actionType) {
+  Widget _buildActionButton(String label, Color color, String actionType,
+      {String hint = ''}) {
     bool disabled = !_isPlayerTurn || _battleOver;
     return GestureDetector(
       onTap: disabled ? null : () => _playerAction(actionType),
@@ -429,24 +467,32 @@ class _BattleScreenState extends State<BattleScreen>
         opacity: disabled ? 0.5 : 1.0,
         child: Container(
           width: 90,
-          height: 60,
+          height: 65,
           decoration: BoxDecoration(
             color: color.withOpacity(0.8),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.white, width: 2),
           ),
-          child: Center(
-            child: Text(label,
-                style: GoogleFonts.vt323(
-                    fontSize: 22,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold)),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(label,
+                  style: GoogleFonts.vt323(
+                      fontSize: 22,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold)),
+              // IMPROVEMENT: Show stat influence hint on each button
+              if (hint.isNotEmpty)
+                Text(hint,
+                    style:
+                        GoogleFonts.vt323(fontSize: 13, color: Colors.white70)),
+            ],
           ),
         ),
       ),
     );
   }
-  // <--- NEW: Victory Screen Overlay
+
   Widget _buildVictoryOverlay() {
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -479,13 +525,10 @@ class _BattleScreenState extends State<BattleScreen>
                     border: Border.all(color: Colors.white24),
                   ),
                   child: Text(
-                    _narrative, // Show the final AI story
+                    _narrative,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.vt323(
-                      fontSize: 20,
-                      color: Colors.white,
-                      height: 1.4,
-                    ),
+                        fontSize: 20, color: Colors.white, height: 1.4),
                   ),
                 ),
                 const SizedBox(height: 30),
@@ -495,7 +538,17 @@ class _BattleScreenState extends State<BattleScreen>
                   style: GoogleFonts.vt323(fontSize: 28, color: Colors.grey),
                 ),
                 const SizedBox(height: 10),
-                _buildSpoils(),
+                // FIX #3: Show spoils only if actually saved, otherwise show error
+                _spoilsSaved
+                    ? _buildSpoils()
+                    : Center(
+                        child: Text(
+                          "Could not save rewards. Check connection.",
+                          style: GoogleFonts.vt323(
+                              fontSize: 18, color: Colors.redAccent),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                 const Spacer(),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -539,10 +592,7 @@ class _BattleScreenState extends State<BattleScreen>
       children: [
         Icon(icon, color: color, size: 28),
         const SizedBox(width: 8),
-        Text(
-          text,
-          style: GoogleFonts.vt323(fontSize: 22, color: Colors.white),
-        ),
+        Text(text, style: GoogleFonts.vt323(fontSize: 22, color: Colors.white)),
       ],
     );
   }
@@ -563,7 +613,6 @@ class BattleBackgroundPainter extends CustomPainter {
         colors: [color.withOpacity(0.3), Colors.transparent],
         radius: 1.0,
       ).createShader(rect);
-
     canvas.drawRect(rect, gradientPaint);
 
     final linePaint = Paint()

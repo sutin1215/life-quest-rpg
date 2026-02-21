@@ -11,7 +11,6 @@ class WorldMapScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final db = DatabaseService();
 
-    // The core RPG regions with their specific coordinates
     final List<Map<String, dynamic>> zones = [
       {
         "id": 1,
@@ -20,7 +19,7 @@ class WorldMapScreen extends StatelessWidget {
         "reqLvl": 2,
         "color": const Color(0xFF4CAF50),
         "x": 200.0,
-        "y": 550.0
+        "y": 550.0,
       },
       {
         "id": 2,
@@ -29,7 +28,7 @@ class WorldMapScreen extends StatelessWidget {
         "reqLvl": 5,
         "color": const Color(0xFF8D6E63),
         "x": 450.0,
-        "y": 400.0
+        "y": 400.0,
       },
       {
         "id": 3,
@@ -38,7 +37,7 @@ class WorldMapScreen extends StatelessWidget {
         "reqLvl": 8,
         "color": const Color(0xFF607D8B),
         "x": 650.0,
-        "y": 550.0
+        "y": 550.0,
       },
       {
         "id": 4,
@@ -47,7 +46,7 @@ class WorldMapScreen extends StatelessWidget {
         "reqLvl": 12,
         "color": const Color(0xFFFF5722),
         "x": 900.0,
-        "y": 250.0
+        "y": 250.0,
       },
     ];
 
@@ -64,13 +63,30 @@ class WorldMapScreen extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: db.getUserStats(),
         builder: (context, snapshot) {
+          // FIX: Handle error state
+          if (snapshot.hasError) {
+            return Center(
+              child: Text("Could not load map data.",
+                  style:
+                      GoogleFonts.vt323(fontSize: 22, color: Colors.redAccent)),
+            );
+          }
+
           int userLvl = 1;
           String userClass = "Hero";
+          int userStr = 5;
+          int userInt = 5;
+          int userDex = 5;
+          int currentZone = 1; // FIX #3 / IMPROVEMENT: Track defeated zones
 
           if (snapshot.hasData && snapshot.data!.exists) {
             final user = snapshot.data!.data() as Map<String, dynamic>;
             userLvl = user['level'] ?? 1;
             userClass = user['className'] ?? "Hero";
+            userStr = user['str'] ?? 5;
+            userInt = user['int'] ?? 5;
+            userDex = user['dex'] ?? 5;
+            currentZone = user['currentZone'] ?? 1;
           }
 
           return InteractiveViewer(
@@ -80,25 +96,33 @@ class WorldMapScreen extends StatelessWidget {
             maxScale: 2.5,
             child: Stack(
               children: [
-                // 1. THE PROCEDURAL MAP
                 CustomPaint(
                   size: const Size(1400, 900),
                   painter: RpgMapPainter(zones: zones),
                 ),
-
-                // 2. INTERACTIVE ZONE MARKERS
                 ...zones.map((zone) {
-                  bool isLocked = userLvl < zone['reqLvl'];
-                  // Glow logic: If the user is currently qualified for this zone but hasn't reached the next one
-                  bool isNext = !isLocked && (zone['reqLvl'] > userLvl - 3);
+                  bool isLocked = userLvl < (zone['reqLvl'] as int);
+                  // FIX #8: Correct "next zone" logic — highlight only the
+                  // first locked zone (the one the player should tackle next).
+                  bool isDefeated = (zone['id'] as int) < currentZone;
+                  bool isNext = !isLocked &&
+                      !isDefeated &&
+                      zones
+                              .where((z) =>
+                                  !(userLvl < (z['reqLvl'] as int)) &&
+                                  (z['id'] as int) >= currentZone)
+                              .map((z) => z['reqLvl'] as int)
+                              .fold(999, (a, b) => a < b ? a : b) ==
+                          (zone['reqLvl'] as int);
 
                   return Positioned(
-                    left: zone['x'] - 35,
-                    top: zone['y'] - 80,
+                    left: (zone['x'] as double) - 35,
+                    top: (zone['y'] as double) - 80,
                     child: GestureDetector(
-                      onTap: () => _handleTap(
-                          context, zone, userLvl, userClass, isLocked),
-                      child: _buildFantasyMarker(zone, isLocked, isNext),
+                      onTap: () => _handleTap(context, zone, userLvl, userClass,
+                          isLocked, userStr, userInt, userDex),
+                      child: _buildFantasyMarker(
+                          zone, isLocked, isNext, isDefeated),
                     ),
                   );
                 }),
@@ -111,7 +135,7 @@ class WorldMapScreen extends StatelessWidget {
   }
 
   void _handleTap(BuildContext context, Map zone, int userLvl, String userClass,
-      bool isLocked) {
+      bool isLocked, int userStr, int userInt, int userDex) {
     if (isLocked) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text("Danger! Reach Level ${zone['reqLvl']} to enter.",
@@ -120,52 +144,116 @@ class WorldMapScreen extends StatelessWidget {
       ));
     } else {
       Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => BattleScreen(
-                    zone: zone as Map<String, dynamic>,
-                    userLvl: userLvl,
-                    userClass: userClass,
-                  )));
+        context,
+        MaterialPageRoute(
+          builder: (context) => BattleScreen(
+            zone: zone as Map<String, dynamic>,
+            userLvl: userLvl,
+            userClass: userClass,
+            // IMPROVEMENT: Pass stats to BattleScreen so they affect combat
+            userStr: userStr,
+            userInt: userInt,
+            userDex: userDex,
+          ),
+        ),
+      );
     }
   }
 
-  Widget _buildFantasyMarker(Map zone, bool isLocked, bool isNext) {
+  Widget _buildFantasyMarker(
+      Map zone, bool isLocked, bool isNext, bool isDefeated) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 500),
-          width: isNext ? 70 : 60,
-          height: isNext ? 70 : 60,
-          decoration: BoxDecoration(
-            color: isLocked ? Colors.grey.shade900 : zone['color'],
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: isLocked ? Colors.black : zone['color'].withAlpha((255 * 0.6).round()),
-                blurRadius: isNext ? 25 : 10,
-                spreadRadius: isNext ? 5 : 2,
-              )
-            ],
-            border: Border.all(
-                color: const Color(0xFFFFD700), width: isLocked ? 1 : 3),
-          ),
-          child: Icon(isLocked ? Icons.lock_outline : Icons.shield,
-              color: Colors.white, size: 30),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              width: isNext ? 70 : 60,
+              height: isNext ? 70 : 60,
+              decoration: BoxDecoration(
+                color: isLocked
+                    ? Colors.grey.shade900
+                    : isDefeated
+                        ? Colors.grey.shade700
+                        : zone['color'],
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: isLocked
+                        ? Colors.black
+                        : isDefeated
+                            ? Colors.black45
+                            : (zone['color'] as Color)
+                                .withAlpha((255 * 0.6).round()),
+                    blurRadius: isNext ? 25 : 10,
+                    spreadRadius: isNext ? 5 : 2,
+                  ),
+                ],
+                border: Border.all(
+                    color: const Color(0xFFFFD700), width: isLocked ? 1 : 3),
+              ),
+              child: Icon(
+                isDefeated
+                    ? Icons.check_circle // IMPROVEMENT #3: Defeated zone icon
+                    : isLocked
+                        ? Icons.lock_outline
+                        : Icons.shield,
+                color: Colors.white,
+                size: 30,
+              ),
+            ),
+            // IMPROVEMENT: "NEXT" badge on the current target zone
+            if (isNext)
+              Positioned(
+                top: -8,
+                right: -8,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.amber,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text("NEXT",
+                      style:
+                          GoogleFonts.vt323(fontSize: 12, color: Colors.black)),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-              color: Colors.black.withAlpha((255 * 0.8).round()),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.white12)),
-          child: Text(zone['name'],
-              style: GoogleFonts.vt323(
-                  color: isLocked ? Colors.grey : const Color(0xFFFFD700),
-                  fontSize: 18)),
+            color: Colors.black.withAlpha((255 * 0.8).round()),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Text(
+            zone['name'] as String,
+            style: GoogleFonts.vt323(
+              color: isDefeated
+                  ? Colors.grey
+                  : isLocked
+                      ? Colors.grey
+                      : const Color(0xFFFFD700),
+              fontSize: 18,
+            ),
+          ),
         ),
+        // IMPROVEMENT: Show required level under locked zones
+        if (isLocked)
+          Text(
+            "Req. Lvl ${zone['reqLvl']}",
+            style: GoogleFonts.vt323(fontSize: 14, color: Colors.red[300]),
+          ),
+        if (isDefeated)
+          Text(
+            "CLEARED",
+            style: GoogleFonts.vt323(fontSize: 14, color: Colors.greenAccent),
+          ),
       ],
     );
   }
@@ -177,7 +265,6 @@ class RpgMapPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Water Background (Ocean Gradient)
     final Rect bgRect = Rect.fromLTWH(0, 0, size.width, size.height);
     final Paint waterPaint = Paint()
       ..shader = const LinearGradient(
@@ -191,7 +278,6 @@ class RpgMapPainter extends CustomPainter {
       ).createShader(bgRect);
     canvas.drawRect(bgRect, waterPaint);
 
-    // 2. Main Continent Path
     final landPaint = Paint()..color = const Color(0xFF1B4332);
     final shorePaint = Paint()
       ..color = const Color(0xFFD4A373)
@@ -209,15 +295,12 @@ class RpgMapPainter extends CustomPainter {
     canvas.drawPath(continentPath, landPaint);
     canvas.drawPath(continentPath, shorePaint);
 
-    // 3. Decorations (Mountains & Malaysian Palm Trees)
     _drawMountain(canvas, 850, 220);
     _drawMountain(canvas, 910, 250);
-
     _drawPalmTree(canvas, 250, 580);
     _drawPalmTree(canvas, 600, 600);
     _drawPalmTree(canvas, 400, 450);
 
-    // 4. Connect Zones with Dashed Travel Lines
     _drawDashedTravelLines(canvas);
   }
 
@@ -228,8 +311,9 @@ class RpgMapPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     for (int i = 0; i < zones.length - 1; i++) {
-      final start = Offset(zones[i]['x'], zones[i]['y']);
-      final end = Offset(zones[i + 1]['x'], zones[i + 1]['y']);
+      final start = Offset(zones[i]['x'] as double, zones[i]['y'] as double);
+      final end =
+          Offset(zones[i + 1]['x'] as double, zones[i + 1]['y'] as double);
 
       double distance = 0;
       final totalDist = (end - start).distance;
@@ -251,25 +335,24 @@ class RpgMapPainter extends CustomPainter {
       ..lineTo(x + 70, y)
       ..close();
     canvas.drawPath(path, mountainPaint);
-    // Snow Cap
     canvas.drawPath(
-        Path()
-          ..moveTo(x + 25, y - 50)
-          ..lineTo(x + 35, y - 70)
-          ..lineTo(x + 45, y - 50)
-          ..close(),
-        Paint()..color = Colors.white);
+      Path()
+        ..moveTo(x + 25, y - 50)
+        ..lineTo(x + 35, y - 70)
+        ..lineTo(x + 45, y - 50)
+        ..close(),
+      Paint()..color = Colors.white,
+    );
   }
 
   void _drawPalmTree(Canvas canvas, double x, double y) {
-    // Trunk
     canvas.drawLine(
-        Offset(x, y),
-        Offset(x, y - 25),
-        Paint()
-          ..color = const Color(0xFF5D4037)
-          ..strokeWidth = 4);
-    // Leaves (Tropical RPG Style)
+      Offset(x, y),
+      Offset(x, y - 25),
+      Paint()
+        ..color = const Color(0xFF5D4037)
+        ..strokeWidth = 4,
+    );
     final leafPaint = Paint()..color = const Color(0xFF2D6A4F);
     canvas.drawCircle(Offset(x - 10, y - 28), 12, leafPaint);
     canvas.drawCircle(Offset(x + 10, y - 28), 12, leafPaint);

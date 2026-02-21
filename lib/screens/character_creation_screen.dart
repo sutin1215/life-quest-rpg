@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/ai_service.dart';
 import '../services/database_service.dart';
-import 'profile_screen.dart'; // <--- THIS WAS MISSING
+import 'profile_screen.dart';
 
 class CharacterCreationScreen extends StatefulWidget {
   const CharacterCreationScreen({super.key});
@@ -18,27 +18,50 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
   final _ai = AiService();
   final _db = DatabaseService();
   bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _bioController.dispose();
+    _mainQuestController.dispose();
+    super.dispose();
+  }
 
   void _awakenHero() async {
-    if (_bioController.text.isEmpty || _mainQuestController.text.isEmpty) {
+    if (_bioController.text.trim().isEmpty ||
+        _mainQuestController.text.trim().isEmpty) {
+      setState(
+          () => _errorMessage = "Fill in both fields to awaken your hero!");
       return;
     }
-    setState(() => _isLoading = true);
 
-    // 1. Ask AI to judge the soul
-    final result = await _ai.generateCharacter(
-        _bioController.text, _mainQuestController.text);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    // 2. Save the Hero to DB
-    result['mainQuest'] = _mainQuestController.text;
-    result['bio'] = _bioController.text;
-    await _db.initializeUser(result);
+    try {
+      final result = await _ai.generateCharacter(
+          _bioController.text, _mainQuestController.text);
 
-    if (!mounted) return;
+      result['mainQuest'] = _mainQuestController.text;
+      result['bio'] = _bioController.text;
+      await _db.initializeUser(result);
 
-    // 3. NAVIGATE TO PROFILE REVEAL
-    Navigator.pushReplacement(context,
-        MaterialPageRoute(builder: (context) => const ProfileScreen()));
+      if (!mounted) return;
+
+      Navigator.pushReplacement(context,
+          MaterialPageRoute(builder: (context) => const ProfileScreen()));
+    } catch (e) {
+      // IMPROVEMENT #12: User-friendly error if AI/network fails
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage =
+              "The Fate Weaver is unreachable. Check your connection and try again.";
+        });
+      }
+    }
   }
 
   @override
@@ -66,6 +89,7 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                 controller: _bioController,
                 maxLines: 5,
                 style: const TextStyle(color: Colors.white),
+                enabled: !_isLoading,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white10,
@@ -74,6 +98,10 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                   hintStyle: TextStyle(color: Colors.grey[600]),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.amber),
+                  ),
                 ),
               ),
               const SizedBox(height: 30),
@@ -90,23 +118,54 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                 controller: _mainQuestController,
                 maxLines: 2,
                 style: const TextStyle(color: Colors.white),
+                enabled: !_isLoading,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white10,
-                  hintText: "e.g., Get in shape",
+                  hintText: "e.g., Get in shape and run a 5K",
                   hintStyle: TextStyle(color: Colors.grey[600]),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.amber),
+                  ),
                 ),
               ),
+
+              // IMPROVEMENT #12: Show error message if something goes wrong
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border:
+                        Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                  ),
+                  child: Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.vt323(
+                        fontSize: 18, color: Colors.redAccent),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 30),
               _isLoading
-                  ? const Column(
+                  ? Column(
                       children: [
-                        CircularProgressIndicator(color: Colors.amber),
-                        SizedBox(height: 10),
+                        const CircularProgressIndicator(color: Colors.amber),
+                        const SizedBox(height: 16),
                         Text("Weaving Destiny...",
-                            style: TextStyle(color: Colors.amber))
+                            style: GoogleFonts.vt323(
+                                fontSize: 22, color: Colors.amber)),
+                        const SizedBox(height: 4),
+                        Text("The Fate Weaver is judging your soul...",
+                            style: GoogleFonts.vt323(
+                                fontSize: 16, color: Colors.white54)),
                       ],
                     )
                   : SizedBox(

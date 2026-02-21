@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // <--- NEW IMPORT
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/home_screen.dart';
 import 'screens/character_creation_screen.dart';
 import 'services/database_service.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+
+  // Load the .env file so AiService can read GEMINI_API_KEY
+  await dotenv.load(fileName: ".env");
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const LifeQuestRPG());
 }
 
@@ -43,7 +49,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
     _signInAnonymously();
   }
 
-  // <--- NEW: Logs the user in silently so they have a Unique ID
   Future<void> _signInAnonymously() async {
     if (FirebaseAuth.instance.currentUser == null) {
       setState(() => _isSigningIn = true);
@@ -58,15 +63,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    precacheImage(
-        const AssetImage("assets/images/map_background.png"), context);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // If not logged in yet, show loading
     if (FirebaseAuth.instance.currentUser == null || _isSigningIn) {
       return const Scaffold(
         backgroundColor: Color(0xFF1A1A1A),
@@ -77,6 +74,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
     return StreamBuilder(
       stream: _db.getUserStats(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF1A1A1A),
+            body: Center(
+              child: Text(
+                'Connection error.\nPlease restart the app.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70),
+              ),
+            ),
+          );
+        }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
               backgroundColor: Color(0xFF1A1A1A),
