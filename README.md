@@ -731,14 +731,15 @@ await _db.runTransaction((t) async {
 
 ## 👥 Team
 
-**Team Name:** *(fill in)*
+**Team Name:** *The Kambings*
 
 | Name | Role |
 |---|---|
-| *(fill in)* | *(fill in)* |
-| *(fill in)* | *(fill in)* |
+| *MUHAMMAD FAIZAL HARIS BIN AIDI* | *LEAD DEVELOPER* |
+| *MUHAMMAD NOOR DANISH BIN NORDIN* | *GAME LOGIC & TESTING* |
+| *NADHIRATUL INSYIRAH BINTI ESMADI* | *UI/UX & DOCUMENTATION* |
 
-**Institution:** *(fill in)*  
+**Institution:** *HWUM, UPM, IIUM*  
 **Competition:** KitaHack 2026  
 **SDG Target:** SDG 3.4 — Mental Health and Well-being
 
