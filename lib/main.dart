@@ -9,22 +9,30 @@ import 'services/database_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
+  // Required for accessing platform channels before runApp
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Safe Initialization of Environment and Firebase
+  // 1. LOAD DOTENV FIRST (Crucial: FirebaseOptions now depends on this)
   try {
-    // Attempt to load .env, but don't crash if it's missing (helps during Git moves)
-    await dotenv
-        .load(fileName: ".env")
-        .catchError((e) => print("Warning: .env file not found"));
+    await dotenv.load(fileName: ".env");
+    debugPrint("Environment loaded successfully");
+  } catch (e) {
+    debugPrint("Warning: .env file missing or failed to load: $e");
+    // We don't return/stop here, because DefaultFirebaseOptions
+    // might have a fallback or throw a clearer error later.
+  }
 
+  // 2. INITIALIZE FIREBASE
+  try {
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+      debugPrint("Firebase Initialized");
     }
   } catch (e) {
-    debugPrint("Critical Init Error: $e");
+    // This catches the [core/duplicate-app] error or API key issues
+    debugPrint("Firebase Init Error: $e");
   }
 
   runApp(const LifeQuestRPG());
@@ -41,7 +49,6 @@ class LifeQuestRPG extends StatelessWidget {
       theme: ThemeData(
         brightness: Brightness.dark,
         primarySwatch: Colors.amber,
-        // Using a deep background to match your AuthWrapper
         scaffoldBackgroundColor: const Color(0xFF0D1B2A),
       ),
       // Starts with Splash, then moves to AuthWrapper
@@ -97,12 +104,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
       stream: _db.getUserStats(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return const Scaffold(
+          return Scaffold(
             body: Center(
-              child: Text(
-                'Connection error.\nPlease check internet or keys.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Text(
+                  'Connection error: ${snapshot.error}\nPlease check internet or keys.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70),
+                ),
               ),
             ),
           );
