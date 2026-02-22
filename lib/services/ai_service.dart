@@ -241,6 +241,66 @@ class AiService {
   }
 
   // ---------------------------------------------------------------------------
+  // GUILDMASTER GUIDANCE — 3 personalized quests based on player profile
+  // ---------------------------------------------------------------------------
+
+  Future<List<Map<String, dynamic>>> generateGuildmasterQuests({
+    required String bio,
+    required String mainQuest,
+    required String className,
+    required int level,
+    required int str,
+    required int intel,
+    required int dex,
+  }) async {
+    final prompt = '''
+      You are the Guildmaster, a wise RPG quest-giver who knows this hero well.
+
+      Hero Profile:
+      - Class: $className (Level $level)
+      - Background: "$bio"
+      - Main Quest: "$mainQuest"
+      - Stats: STR $str | INT $intel | DEX $dex
+
+      The hero needs guidance for their daily life. Generate exactly 3 quests that are:
+      1. Genuinely useful and personalized to their background and goals
+      2. Practical real-world tasks they can do TODAY
+      3. Written in flavourful RPG language but describing real actions
+      4. Balanced across their stats (don't only pick their highest stat)
+
+      Return ONLY a JSON array:
+      [
+        {"title": "Quest Name", "description": "RPG-flavored real-world task", "xp": 40, "gold": 20, "statType": "STR"},
+        {"title": "Quest Name", "description": "RPG-flavored real-world task", "xp": 30, "gold": 15, "statType": "INT"},
+        {"title": "Quest Name", "description": "RPG-flavored real-world task", "xp": 50, "gold": 25, "statType": "DEX"}
+      ]
+    ''';
+    return _safeGenerateList(prompt, [
+      {
+        "title": "The Daily Grind",
+        "description": "Complete one important task from your to-do list.",
+        "xp": 30,
+        "gold": 15,
+        "statType": "INT"
+      },
+      {
+        "title": "Forge the Body",
+        "description": "Perform 20 minutes of physical training.",
+        "xp": 40,
+        "gold": 20,
+        "statType": "STR"
+      },
+      {
+        "title": "Swift Correspondence",
+        "description": "Respond to all pending messages and emails.",
+        "xp": 25,
+        "gold": 12,
+        "statType": "DEX"
+      },
+    ]);
+  }
+
+  // ---------------------------------------------------------------------------
   // PRIVATE HELPERS
   // ---------------------------------------------------------------------------
 

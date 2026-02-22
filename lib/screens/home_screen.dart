@@ -98,6 +98,7 @@ class _QuestBoardState extends State<QuestBoard> {
       body: Column(
         children: [
           _buildAttributeBar(),
+          _buildGuildmasterButton(),
           Expanded(child: _buildQuestList()),
         ],
       ),
@@ -234,6 +235,90 @@ class _QuestBoardState extends State<QuestBoard> {
           ),
         );
       },
+    );
+  }
+
+  // ── Guildmaster Banner Button ──────────────────────────────────────────────
+  Widget _buildGuildmasterButton() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      child: GestureDetector(
+        onTap: _showGuildmasterModal,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1C1409), Color(0xFF2A1F08)],
+            ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: RpgTheme.goldPrimary.withValues(alpha: 0.7), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                  color: RpgTheme.goldPrimary.withValues(alpha: 0.2),
+                  blurRadius: 10),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: RpgTheme.goldPrimary.withValues(alpha: 0.15),
+                  border: Border.all(
+                      color: RpgTheme.goldPrimary.withValues(alpha: 0.5)),
+                ),
+                child: const Icon(Icons.record_voice_over,
+                    color: RpgTheme.goldPrimary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('CONSULT THE GUILDMASTER',
+                        style: GoogleFonts.vt323(
+                            fontSize: 18,
+                            color: RpgTheme.goldPrimary,
+                            letterSpacing: 1)),
+                    Text('"Lost, Adventurer? I shall guide thee."',
+                        style: GoogleFonts.vt323(
+                            fontSize: 14, color: RpgTheme.textMuted)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right,
+                  color: RpgTheme.goldPrimary, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showGuildmasterModal() async {
+    // First get the player's data
+    final snap = await db.getUserStats().first;
+    if (!mounted) return;
+    final data = snap.data() as Map<String, dynamic>?;
+    if (data == null) return;
+
+    // Show loading bottom sheet
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: RpgTheme.backgroundMid,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => _GuildmasterModal(
+        data: data,
+        ai: ai,
+        db: db,
+      ),
     );
   }
 
@@ -688,6 +773,323 @@ class _AddQuestDialogState extends State<_AddQuestDialog> {
                     color: RpgTheme.goldPrimary, fontSize: 22)),
           ),
       ],
+    );
+  }
+}
+
+// ── Guildmaster Modal ─────────────────────────────────────────────────────────
+class _GuildmasterModal extends StatefulWidget {
+  final Map<String, dynamic> data;
+  final AiService ai;
+  final DatabaseService db;
+
+  const _GuildmasterModal({
+    required this.data,
+    required this.ai,
+    required this.db,
+  });
+
+  @override
+  State<_GuildmasterModal> createState() => _GuildmasterModalState();
+}
+
+class _GuildmasterModalState extends State<_GuildmasterModal> {
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _quests = [];
+  String? _error;
+  Set<int> _addedIndexes = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _generateQuests();
+  }
+
+  Future<void> _generateQuests() async {
+    try {
+      final quests = await widget.ai.generateGuildmasterQuests(
+        bio: widget.data['bio'] ?? '',
+        mainQuest: widget.data['mainQuest'] ?? '',
+        className: widget.data['className'] ?? 'Hero',
+        level: widget.data['level'] ?? 1,
+        str: widget.data['str'] ?? 5,
+        intel: widget.data['int'] ?? 5,
+        dex: widget.data['dex'] ?? 5,
+      );
+      if (mounted)
+        setState(() {
+          _quests = quests;
+          _isLoading = false;
+        });
+    } catch (e) {
+      if (mounted)
+        setState(() {
+          _error = 'The Guildmaster is unavailable. Try again.';
+          _isLoading = false;
+        });
+    }
+  }
+
+  Future<void> _acceptQuest(int index) async {
+    HapticFeedback.mediumImpact();
+    await widget.db.addQuest(_quests[index]);
+    if (mounted) setState(() => _addedIndexes.add(index));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      maxChildSize: 0.92,
+      minChildSize: 0.4,
+      expand: false,
+      builder: (_, scrollCtrl) => Container(
+        decoration: const BoxDecoration(
+          color: RpgTheme.backgroundMid,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          border:
+              Border(top: BorderSide(color: RpgTheme.goldPrimary, width: 1)),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: RpgTheme.textMuted,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: RpgTheme.goldPrimary.withValues(alpha: 0.15),
+                      border: Border.all(
+                          color: RpgTheme.goldPrimary.withValues(alpha: 0.5)),
+                    ),
+                    child: const Icon(Icons.record_voice_over,
+                        color: RpgTheme.goldPrimary, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('THE GUILDMASTER SPEAKS',
+                            style: GoogleFonts.vt323(
+                                fontSize: 22,
+                                color: RpgTheme.goldPrimary,
+                                letterSpacing: 1)),
+                        Text('Personalized quests for your journey',
+                            style: GoogleFonts.vt323(
+                                fontSize: 15, color: RpgTheme.textMuted)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Divider(color: RpgTheme.goldPrimary.withValues(alpha: 0.2)),
+
+            // Body
+            Expanded(
+              child: _isLoading
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(
+                              color: RpgTheme.goldPrimary),
+                          const SizedBox(height: 16),
+                          Text('The Guildmaster ponders your fate...',
+                              style: GoogleFonts.vt323(
+                                  fontSize: 18, color: RpgTheme.textMuted)),
+                        ],
+                      ),
+                    )
+                  : _error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.error_outline,
+                                    color: Colors.redAccent, size: 48),
+                                const SizedBox(height: 12),
+                                Text(_error!,
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.vt323(
+                                        fontSize: 18, color: Colors.redAccent)),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: RpgTheme.goldPrimary),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isLoading = true;
+                                      _error = null;
+                                    });
+                                    _generateQuests();
+                                  },
+                                  child: Text('TRY AGAIN',
+                                      style: GoogleFonts.vt323(
+                                          color: Colors.black, fontSize: 18)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: scrollCtrl,
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                          itemCount: _quests.length,
+                          itemBuilder: (_, i) => _buildGuildQuestCard(i),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuildQuestCard(int index) {
+    final q = _quests[index];
+    final bool added = _addedIndexes.contains(index);
+
+    Color statColor = RpgTheme.strColor;
+    IconData statIcon = Icons.fitness_center;
+    if (q['statType'] == 'INT') {
+      statColor = RpgTheme.intColor;
+      statIcon = Icons.menu_book;
+    } else if (q['statType'] == 'DEX') {
+      statColor = RpgTheme.dexColor;
+      statIcon = Icons.bolt;
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1C1409), Color(0xFF130E04)],
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: added
+              ? Colors.green.withValues(alpha: 0.7)
+              : statColor.withValues(alpha: 0.5),
+          width: added ? 2 : 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (added ? Colors.green : statColor).withValues(alpha: 0.15),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: statColor.withValues(alpha: 0.15),
+                    border: Border.all(color: statColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Icon(statIcon, color: statColor, size: 14),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(q['title'] ?? 'Quest',
+                      style: GoogleFonts.vt323(
+                          fontSize: 20, color: RpgTheme.textPrimary)),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: statColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: statColor.withValues(alpha: 0.4)),
+                  ),
+                  child: Text(q['statType'] ?? 'STR',
+                      style: GoogleFonts.vt323(fontSize: 14, color: statColor)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(q['description'] ?? '',
+                style: GoogleFonts.vt323(
+                    fontSize: 16, color: RpgTheme.textMuted, height: 1.3)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(Icons.star, color: Colors.lightBlueAccent, size: 14),
+                Text(' +${q['xp']} XP',
+                    style: GoogleFonts.vt323(
+                        fontSize: 15, color: Colors.lightBlueAccent)),
+                const SizedBox(width: 10),
+                Icon(Icons.monetization_on, color: Colors.amber, size: 14),
+                Text(' +${q['gold']} G',
+                    style:
+                        GoogleFonts.vt323(fontSize: 15, color: Colors.amber)),
+                const Spacer(),
+                // Accept / Added button
+                GestureDetector(
+                  onTap: added ? null : () => _acceptQuest(index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: added
+                            ? [Colors.green.shade800, Colors.green.shade700]
+                            : [RpgTheme.goldPrimary, const Color(0xFFE8A838)],
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (added ? Colors.green : RpgTheme.goldPrimary)
+                              .withValues(alpha: 0.35),
+                          blurRadius: 6,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      added ? '✓ ACCEPTED' : 'ACCEPT',
+                      style: GoogleFonts.vt323(
+                          fontSize: 16,
+                          color: added ? Colors.white : Colors.black),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

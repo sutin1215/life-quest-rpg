@@ -51,30 +51,27 @@ class _BattleScreenState extends State<BattleScreen>
   int _turnCount = 0;
   bool _midBattleTauntShown = false;
 
-  // Attack flash animation
+  // Dialogue gate: typewriter must finish before player can act
+  bool _dialoguePlaying = false;
+  bool _awaitingPlayerConfirm = false; // show CONTINUE button
+  String _dialogueSpeaker = 'boss'; // 'boss' | 'player' | 'narrator'
+
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
   late AnimationController _bossPulseController;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   late ConfettiController _confettiController;
-
-  // Boss HP flash on hit
   late AnimationController _bossHitController;
   late Animation<double> _bossHitAnim;
-
-  // Hero HP flash on hit
   late AnimationController _heroHitController;
   late Animation<double> _heroHitAnim;
-
-  // Attack lunge animation
   late AnimationController _attackController;
   late Animation<double> _attackAnim;
 
   @override
   void initState() {
     super.initState();
-
     _shakeController = AnimationController(
         duration: const Duration(milliseconds: 400), vsync: this);
     _shakeAnimation =
@@ -95,17 +92,14 @@ class _BattleScreenState extends State<BattleScreen>
     _confettiController =
         ConfettiController(duration: const Duration(seconds: 10));
 
-    // Boss flash red on hit
     _bossHitController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 300));
     _bossHitAnim = Tween(begin: 0.0, end: 1.0).animate(_bossHitController);
 
-    // Hero flash on damage received
     _heroHitController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 300));
     _heroHitAnim = Tween(begin: 0.0, end: 1.0).animate(_heroHitController);
 
-    // Attack lunge
     _attackController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 250));
     _attackAnim = Tween(begin: 0.0, end: 1.0).animate(
@@ -128,6 +122,31 @@ class _BattleScreenState extends State<BattleScreen>
 
   int get _bossLevel => widget.zone['reqLvl'] as int? ?? 1;
 
+  // Called by RpgDialogueBox when typewriter finishes
+  void _onDialogueComplete() {
+    if (!mounted) return;
+    setState(() {
+      _dialoguePlaying = false;
+      // Boss/narrator dialogue = show CONTINUE gate
+      // Player action text = no gate, re-enable immediately
+      if (_dialogueSpeaker == 'boss' || _dialogueSpeaker == 'narrator') {
+        _awaitingPlayerConfirm = true;
+      }
+    });
+  }
+
+  // Called when player taps CONTINUE after reading boss dialogue
+  void _onPlayerConfirm() {
+    if (!mounted) return;
+    setState(() {
+      _awaitingPlayerConfirm = false;
+    });
+    // Resume player turn if battle isn't over
+    if (!_isPlayerTurn && !_battleOver) {
+      setState(() => _isPlayerTurn = true);
+    }
+  }
+
   Future<void> _initializeBattle() async {
     _maxHeroHp = 50 + (widget.userLvl * 10);
     _currentHeroHp = _maxHeroHp;
@@ -147,14 +166,23 @@ class _BattleScreenState extends State<BattleScreen>
       setState(() {
         _narrative = taunt;
         _isLoading = false;
+        _dialoguePlaying = true;
+        _dialogueSpeaker = 'boss';
+        _awaitingPlayerConfirm = false;
       });
     }
   }
 
   void _playerAction(String action) {
-    if (!_isPlayerTurn || _battleOver) return;
+    if (!_isPlayerTurn ||
+        _battleOver ||
+        _dialoguePlaying ||
+        _awaitingPlayerConfirm) return;
     HapticFeedback.mediumImpact();
-    setState(() => _isPlayerTurn = false);
+    setState(() {
+      _isPlayerTurn = false;
+      _dialogueSpeaker = 'player';
+    });
 
     int dmg = 0;
     String logMsg = '';
@@ -162,7 +190,6 @@ class _BattleScreenState extends State<BattleScreen>
     if (action == 'ATTACK') {
       dmg = (10 + widget.userLvl * 2 + widget.userStr) + Random().nextInt(5);
       logMsg = 'You strike for $dmg damage!';
-      // Lunge animation then boss flash
       _attackController.forward(from: 0).then((_) {
         _attackController.reverse();
         if (dmg > 0) {
@@ -173,15 +200,15 @@ class _BattleScreenState extends State<BattleScreen>
       });
     } else if (action == 'HEAL') {
       HapticFeedback.lightImpact();
-      int heal = (15 + widget.userLvl * 2 + widget.userInt);
+      final heal = 15 + widget.userLvl * 2 + widget.userInt;
       setState(() {
         _currentHeroHp = (_currentHeroHp + heal).clamp(0, _maxHeroHp);
       });
       logMsg = 'You channel energy and heal $heal HP!';
     } else if (action == 'ULTIMATE') {
-      double critChance = 0.4 + (widget.userDex * 0.02);
+      final critChance = 0.4 + (widget.userDex * 0.02);
       if (Random().nextDouble() < critChance) {
-        dmg = (25 + widget.userLvl * 3 + widget.userStr * 2);
+        dmg = 25 + widget.userLvl * 3 + widget.userStr * 2;
         logMsg = '⚡ CRITICAL! Ultimate deals $dmg damage!';
         HapticFeedback.heavyImpact();
         _bossHitController
@@ -198,7 +225,12 @@ class _BattleScreenState extends State<BattleScreen>
       });
     }
 
-    setState(() => _narrative = logMsg);
+    setState(() {
+      _narrative = logMsg;
+      // Player action text is short — no confirm gate, just show it
+      _dialoguePlaying = false;
+      _awaitingPlayerConfirm = false;
+    });
 
     _checkMidBattleTaunt();
     _turnCount++;
@@ -206,7 +238,7 @@ class _BattleScreenState extends State<BattleScreen>
     if (_currentBossHp <= 0) {
       _endBattle(true);
     } else {
-      Future.delayed(const Duration(milliseconds: 1500), _bossTurn);
+      Future.delayed(const Duration(milliseconds: 900), _bossTurn);
     }
   }
 
@@ -225,14 +257,21 @@ class _BattleScreenState extends State<BattleScreen>
         intensity: 'MidBattle',
       )
           .then((taunt) {
-        if (mounted) setState(() => _narrative = taunt);
+        if (mounted) {
+          setState(() {
+            _narrative = taunt;
+            _dialoguePlaying = true;
+            _dialogueSpeaker = 'boss';
+            _awaitingPlayerConfirm = false;
+          });
+        }
       });
     }
   }
 
   void _bossTurn() {
     if (_battleOver) return;
-    int dmg = (8 + _bossLevel * 2) + Random().nextInt(5);
+    final dmg = (8 + _bossLevel * 2) + Random().nextInt(5);
 
     HapticFeedback.mediumImpact();
     _shakeController.forward(from: 0);
@@ -243,12 +282,14 @@ class _BattleScreenState extends State<BattleScreen>
     setState(() {
       _currentHeroHp = (_currentHeroHp - dmg).clamp(0, _maxHeroHp);
       _narrative = '${widget.zone['boss']} attacks for $dmg damage!';
+      _dialoguePlaying = true;
+      _dialogueSpeaker = 'boss';
+      _awaitingPlayerConfirm = false;
+      // _isPlayerTurn stays false until player taps CONTINUE
     });
 
     if (_currentHeroHp <= 0) {
       _endBattle(false);
-    } else {
-      setState(() => _isPlayerTurn = true);
     }
   }
 
@@ -256,6 +297,9 @@ class _BattleScreenState extends State<BattleScreen>
     setState(() {
       _battleOver = true;
       _didWin = won;
+      _dialoguePlaying = true;
+      _dialogueSpeaker = 'narrator';
+      _awaitingPlayerConfirm = false;
     });
 
     final resultText = await _ai.generateBattleNarration(
@@ -288,7 +332,7 @@ class _BattleScreenState extends State<BattleScreen>
     return AnimatedBuilder(
       animation: _shakeAnimation,
       builder: (context, child) {
-        double dx = sin(_shakeAnimation.value * pi * 10) * 8;
+        final dx = sin(_shakeAnimation.value * pi * 10) * 8;
         return Transform.translate(
           offset: Offset(dx, 0),
           child: Scaffold(
@@ -303,7 +347,6 @@ class _BattleScreenState extends State<BattleScreen>
             ),
             body: Stack(
               children: [
-                // IMPROVEMENT #7: Zone-specific painted background
                 CustomPaint(
                   painter: getBattleBackground(zoneName),
                   size: Size.infinite,
@@ -324,13 +367,16 @@ class _BattleScreenState extends State<BattleScreen>
                                       color: RpgTheme.goldPrimary),
                                 ),
                               )
-                            // IMPROVEMENT #5: Typewriter dialogue box
                             : RpgDialogueBox(
+                                key: ValueKey(_narrative),
                                 text: _narrative,
-                                speakerName: _isPlayerTurn || _narrative.isEmpty
-                                    ? null
-                                    : bossName,
+                                speakerName: _dialogueSpeaker == 'player'
+                                    ? widget.userClass
+                                    : _dialogueSpeaker == 'narrator'
+                                        ? 'NARRATOR'
+                                        : bossName,
                                 accentColor: zoneColor,
+                                onComplete: _onDialogueComplete,
                               ),
                       ),
                       const SizedBox(height: 8),
@@ -350,7 +396,7 @@ class _BattleScreenState extends State<BattleScreen>
                       Colors.blue,
                       Colors.pink,
                       Colors.orange,
-                      Colors.purple,
+                      Colors.purple
                     ],
                   ),
                 ),
@@ -365,7 +411,6 @@ class _BattleScreenState extends State<BattleScreen>
   Widget _buildBossArea(Color zoneColor, String bossName) {
     return Stack(
       children: [
-        // IMPROVEMENT #6: Hero avatar bottom-left
         Positioned(
           bottom: 16,
           left: 16,
@@ -396,7 +441,6 @@ class _BattleScreenState extends State<BattleScreen>
             ],
           ),
         ),
-        // Boss display center
         Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -412,7 +456,6 @@ class _BattleScreenState extends State<BattleScreen>
               const SizedBox(height: 8),
               _buildHealthBar(_currentBossHp, _maxBossHp, Colors.red),
               const SizedBox(height: 20),
-              // IMPROVEMENT #3: Attack flash on boss
               AnimatedBuilder(
                 animation: _bossHitAnim,
                 builder: (_, child) => ColorFiltered(
@@ -435,7 +478,6 @@ class _BattleScreenState extends State<BattleScreen>
                         ),
                       ],
                     ),
-                    // IMPROVEMENT #2: Unique pixel boss art
                     child: buildBossArt(bossName, zoneColor, size: 130),
                   ),
                 ),
@@ -448,12 +490,16 @@ class _BattleScreenState extends State<BattleScreen>
   }
 
   Widget _buildPlayerControls(Color zoneColor) {
+    final bool canAct = _isPlayerTurn &&
+        !_battleOver &&
+        !_dialoguePlaying &&
+        !_awaitingPlayerConfirm;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          // Hero HP bar with flash
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -466,7 +512,6 @@ class _BattleScreenState extends State<BattleScreen>
             ],
           ),
           const SizedBox(height: 4),
-          // IMPROVEMENT #3: Hero HP bar flashes on damage
           AnimatedBuilder(
             animation: _heroHitAnim,
             builder: (_, __) => Container(
@@ -476,23 +521,53 @@ class _BattleScreenState extends State<BattleScreen>
                 boxShadow: _heroHitAnim.value > 0
                     ? [
                         BoxShadow(
-                          color: Colors.red
-                              .withValues(alpha: _heroHitAnim.value * 0.8),
-                          blurRadius: 12,
-                          spreadRadius: 2,
-                        )
+                            color: Colors.red
+                                .withValues(alpha: _heroHitAnim.value * 0.8),
+                            blurRadius: 12,
+                            spreadRadius: 2)
                       ]
                     : [],
               ),
               child: _buildHealthBar(_currentHeroHp, _maxHeroHp, Colors.green),
             ),
           ),
-          const SizedBox(height: 16),
-          if (!_battleOver)
+          const SizedBox(height: 12),
+
+          // CONTINUE button after boss dialogue
+          if (_awaitingPlayerConfirm && !_battleOver)
+            GestureDetector(
+              onTap: _onPlayerConfirm,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      zoneColor.withValues(alpha: 0.85),
+                      zoneColor.withValues(alpha: 0.55)
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: RpgTheme.goldPrimary, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                        color: zoneColor.withValues(alpha: 0.4), blurRadius: 12)
+                  ],
+                ),
+                child: Text(
+                  'CONTINUE  ▶',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.vt323(
+                      fontSize: 22, color: Colors.white, letterSpacing: 2),
+                ),
+              ),
+            )
+
+          // Normal action buttons
+          else if (!_battleOver)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // IMPROVEMENT #3: Attack button lunges forward
                 AnimatedBuilder(
                   animation: _attackAnim,
                   builder: (_, child) => Transform.translate(
@@ -501,12 +576,12 @@ class _BattleScreenState extends State<BattleScreen>
                   ),
                   child: _buildActionButton(
                       'ATTACK', Colors.redAccent, 'ATTACK',
-                      hint: 'STR +${widget.userStr}'),
+                      hint: 'STR +${widget.userStr}', enabled: canAct),
                 ),
                 _buildActionButton('HEAL', Colors.greenAccent, 'HEAL',
-                    hint: 'INT +${widget.userInt}'),
+                    hint: 'INT +${widget.userInt}', enabled: canAct),
                 _buildActionButton('ULTI', Colors.purpleAccent, 'ULTIMATE',
-                    hint: 'DEX ${(40 + widget.userDex * 2)}%'),
+                    hint: 'DEX ${(40 + widget.userDex * 2)}%', enabled: canAct),
               ],
             )
           else
@@ -529,14 +604,12 @@ class _BattleScreenState extends State<BattleScreen>
   }
 
   Widget _buildHealthBar(int current, int max, Color color) {
-    double pct = (current / max).clamp(0.0, 1.0);
-    // Color shifts to red as HP drops
+    final pct = (current / max).clamp(0.0, 1.0);
     final barColor = pct > 0.5
         ? color
         : pct > 0.25
             ? Colors.orange
             : Colors.red;
-
     return Container(
       height: 12,
       width: 200,
@@ -554,7 +627,7 @@ class _BattleScreenState extends State<BattleScreen>
             color: barColor,
             borderRadius: BorderRadius.circular(3),
             boxShadow: [
-              BoxShadow(color: barColor.withValues(alpha: 0.5), blurRadius: 6),
+              BoxShadow(color: barColor.withValues(alpha: 0.5), blurRadius: 6)
             ],
           ),
         ),
@@ -563,12 +636,11 @@ class _BattleScreenState extends State<BattleScreen>
   }
 
   Widget _buildActionButton(String label, Color color, String actionType,
-      {String hint = ''}) {
-    bool disabled = !_isPlayerTurn || _battleOver;
+      {String hint = '', bool enabled = true}) {
     return GestureDetector(
-      onTap: disabled ? null : () => _playerAction(actionType),
+      onTap: enabled ? () => _playerAction(actionType) : null,
       child: AnimatedOpacity(
-        opacity: disabled ? 0.45 : 1.0,
+        opacity: enabled ? 1.0 : 0.35,
         duration: const Duration(milliseconds: 200),
         child: Container(
           width: 92,
@@ -584,12 +656,12 @@ class _BattleScreenState extends State<BattleScreen>
             ),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.white54, width: 1.5),
-            boxShadow: disabled
-                ? []
-                : [
+            boxShadow: enabled
+                ? [
                     BoxShadow(
                         color: color.withValues(alpha: 0.4), blurRadius: 8)
-                  ],
+                  ]
+                : [],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -622,20 +694,18 @@ class _BattleScreenState extends State<BattleScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'VICTORY!',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.vt323(
-                    fontSize: 64,
-                    color: RpgTheme.goldPrimary,
-                    shadows: [
-                      const Shadow(blurRadius: 24, color: RpgTheme.goldPrimary)
-                    ],
-                  ),
-                ),
+                Text('VICTORY!',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.vt323(
+                        fontSize: 64,
+                        color: RpgTheme.goldPrimary,
+                        shadows: [
+                          const Shadow(
+                              blurRadius: 24, color: RpgTheme.goldPrimary)
+                        ])),
                 const SizedBox(height: 20),
-                // Typewriter narration on victory
                 RpgDialogueBox(
+                  key: ValueKey('victory_$_narrative'),
                   text: _narrative,
                   speakerName: 'NARRATOR',
                   accentColor: RpgTheme.goldPrimary,
@@ -649,13 +719,10 @@ class _BattleScreenState extends State<BattleScreen>
                 _spoilsSaved
                     ? _buildSpoils()
                     : Center(
-                        child: Text(
-                          'Could not save rewards. Check connection.',
-                          style: GoogleFonts.vt323(
-                              fontSize: 18, color: Colors.redAccent),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+                        child: Text('Could not save rewards. Check connection.',
+                            style: GoogleFonts.vt323(
+                                fontSize: 18, color: Colors.redAccent),
+                            textAlign: TextAlign.center)),
                 const Spacer(),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
