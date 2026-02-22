@@ -138,8 +138,8 @@ class _SplashScreenState extends State<SplashScreen>
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: RpgTheme.goldPrimary
-                                        .withOpacity(_glowPulse.value * 0.6),
+                                    color: RpgTheme.goldPrimary.withValues(
+                                        alpha: _glowPulse.value * 0.6),
                                     blurRadius: 40,
                                     spreadRadius: 10,
                                   ),
@@ -166,7 +166,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 shadows: [
                                   Shadow(
                                     color: RpgTheme.goldPrimary
-                                        .withOpacity(_glowPulse.value),
+                                        .withValues(alpha: _glowPulse.value),
                                     blurRadius: 20,
                                   ),
                                 ],
@@ -193,7 +193,8 @@ class _SplashScreenState extends State<SplashScreen>
                               Container(
                                   width: 60,
                                   height: 1,
-                                  color: RpgTheme.goldPrimary.withOpacity(0.5)),
+                                  color: RpgTheme.goldPrimary
+                                      .withValues(alpha: 0.5)),
                               const SizedBox(width: 12),
                               const Icon(Icons.shield,
                                   color: RpgTheme.goldPrimary, size: 16),
@@ -201,7 +202,8 @@ class _SplashScreenState extends State<SplashScreen>
                               Container(
                                   width: 60,
                                   height: 1,
-                                  color: RpgTheme.goldPrimary.withOpacity(0.5)),
+                                  color: RpgTheme.goldPrimary
+                                      .withValues(alpha: 0.5)),
                             ],
                           ),
 
@@ -299,7 +301,7 @@ class _StarfieldPainter extends CustomPainter {
       canvas.drawCircle(
         Offset(s.x * size.width, s.y * size.height),
         s.size,
-        Paint()..color = Colors.white.withOpacity(opacity),
+        Paint()..color = Colors.white.withValues(alpha: opacity),
       );
     }
   }

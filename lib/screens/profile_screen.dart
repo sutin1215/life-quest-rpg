@@ -112,7 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           Shadow(
                             blurRadius: 16,
                             color: RpgTheme.goldPrimary
-                                .withOpacity(_shimmer.value),
+                                .withValues(alpha: _shimmer.value),
                           ),
                         ],
                       ),
@@ -216,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   boxShadow: [
                                     BoxShadow(
                                         color: RpgTheme.goldPrimary
-                                            .withOpacity(0.5),
+                                            .withValues(alpha: 0.5),
                                         blurRadius: 16,
                                         spreadRadius: 2),
                                   ],
@@ -248,12 +248,13 @@ class _ProfileScreenState extends State<ProfileScreen>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: RpgTheme.goldPrimary.withOpacity(_shimmer.value),
+            color: RpgTheme.goldPrimary.withValues(alpha: _shimmer.value),
             width: 3,
           ),
           boxShadow: [
             BoxShadow(
-              color: RpgTheme.goldPrimary.withOpacity(_shimmer.value * 0.4),
+              color:
+                  RpgTheme.goldPrimary.withValues(alpha: _shimmer.value * 0.4),
               blurRadius: 24,
               spreadRadius: 2,
             ),

@@ -5,21 +5,22 @@ import 'package:flutter/material.dart';
 CustomPainter getBattleBackground(String zoneName) {
   final name = zoneName.toLowerCase();
   if (name.contains('slime') || name.contains('forest')) {
-    return ForestBattlePainter();
+    return const ForestBattlePainter();
   } else if (name.contains('goblin') || name.contains('cave')) {
-    return CaveBattlePainter();
+    return const CaveBattlePainter();
   } else if (name.contains('haunted') || name.contains('keep')) {
-    return HauntedBattlePainter();
+    return const HauntedBattlePainter();
   } else if (name.contains('dragon') || name.contains('peak')) {
-    return DragonPeakBattlePainter();
+    return const DragonPeakBattlePainter();
   }
-  return ForestBattlePainter();
+  return const ForestBattlePainter();
 }
 
 // ─────────────────────────────────────────────
 // 1. Slime Forest — green trees, fog, fireflies
 // ─────────────────────────────────────────────
 class ForestBattlePainter extends CustomPainter {
+  const ForestBattlePainter();
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
@@ -27,10 +28,10 @@ class ForestBattlePainter extends CustomPainter {
 
     // Sky gradient
     final skyPaint = Paint()
-      ..shader = LinearGradient(
+      ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [const Color(0xFF0A1A0A), const Color(0xFF1B3A1B)],
+        colors: [Color(0xFF0A1A0A), Color(0xFF1B3A1B)],
       ).createShader(Rect.fromLTWH(0, 0, w, h));
     canvas.drawRect(Rect.fromLTWH(0, 0, w, h), skyPaint);
 
@@ -38,7 +39,7 @@ class ForestBattlePainter extends CustomPainter {
     canvas.drawCircle(
       Offset(w * 0.8, h * 0.12),
       28,
-      Paint()..color = const Color(0xFFEEE8C0).withOpacity(0.85),
+      Paint()..color = const Color(0xFFEEE8C0).withValues(alpha: 0.85),
     );
     canvas.drawCircle(
       Offset(w * 0.82, h * 0.10),
@@ -58,16 +59,16 @@ class ForestBattlePainter extends CustomPainter {
 
     // Ground
     final groundPaint = Paint()
-      ..shader = LinearGradient(
+      ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [const Color(0xFF1A3320), const Color(0xFF0D1A10)],
+        colors: [Color(0xFF1A3320), Color(0xFF0D1A10)],
       ).createShader(Rect.fromLTWH(0, h * 0.82, w, h * 0.18));
     canvas.drawRect(Rect.fromLTWH(0, h * 0.82, w, h * 0.18), groundPaint);
 
     // Fog layer
     final fogPaint = Paint()
-      ..color = const Color(0xFF4CAF50).withOpacity(0.07)
+      ..color = const Color(0xFF4CAF50).withValues(alpha: 0.07)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
     canvas.drawOval(
         Rect.fromCenter(
@@ -77,7 +78,7 @@ class ForestBattlePainter extends CustomPainter {
     // Fireflies
     final rng = Random(42);
     final ffPaint = Paint()
-      ..color = const Color(0xFFAAFF44).withOpacity(0.7)
+      ..color = const Color(0xFFAAFF44).withValues(alpha: 0.7)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     for (int i = 0; i < 12; i++) {
       canvas.drawCircle(
@@ -115,6 +116,7 @@ class ForestBattlePainter extends CustomPainter {
 // 2. Goblin Cave — stalactites, torches, rock
 // ─────────────────────────────────────────────
 class CaveBattlePainter extends CustomPainter {
+  const CaveBattlePainter();
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
@@ -122,10 +124,10 @@ class CaveBattlePainter extends CustomPainter {
 
     // Dark cave background
     final bgPaint = Paint()
-      ..shader = RadialGradient(
+      ..shader = const RadialGradient(
         center: Alignment.center,
         radius: 1.0,
-        colors: [const Color(0xFF2A1A0A), const Color(0xFF0A0805)],
+        colors: [Color(0xFF2A1A0A), Color(0xFF0A0805)],
       ).createShader(Rect.fromLTWH(0, 0, w, h));
     canvas.drawRect(Rect.fromLTWH(0, 0, w, h), bgPaint);
 
@@ -171,7 +173,7 @@ class CaveBattlePainter extends CustomPainter {
 
     // Cracks in wall
     final crackPaint = Paint()
-      ..color = Colors.black.withOpacity(0.6)
+      ..color = Colors.black.withValues(alpha: 0.6)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
     canvas.drawLine(
@@ -182,7 +184,7 @@ class CaveBattlePainter extends CustomPainter {
 
   void _drawTorchGlow(Canvas c, double x, double y) {
     final glowPaint = Paint()
-      ..color = const Color(0xFFFF6B00).withOpacity(0.3)
+      ..color = const Color(0xFFFF6B00).withValues(alpha: 0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 35);
     c.drawCircle(Offset(x, y), 50, glowPaint);
 
@@ -208,6 +210,7 @@ class CaveBattlePainter extends CustomPainter {
 // 3. Haunted Keep — crumbling walls, moon, bats
 // ─────────────────────────────────────────────
 class HauntedBattlePainter extends CustomPainter {
+  const HauntedBattlePainter();
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
@@ -215,16 +218,16 @@ class HauntedBattlePainter extends CustomPainter {
 
     // Stormy sky
     final bgPaint = Paint()
-      ..shader = LinearGradient(
+      ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [const Color(0xFF0A0A1A), const Color(0xFF1A1A2E)],
+        colors: [Color(0xFF0A0A1A), Color(0xFF1A1A2E)],
       ).createShader(Rect.fromLTWH(0, 0, w, h));
     canvas.drawRect(Rect.fromLTWH(0, 0, w, h), bgPaint);
 
     // Eerie moon
     final moonGlow = Paint()
-      ..color = const Color(0xFF607D8B).withOpacity(0.3)
+      ..color = const Color(0xFF607D8B).withValues(alpha: 0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 25);
     canvas.drawCircle(Offset(w * 0.5, h * 0.1), 45, moonGlow);
     canvas.drawCircle(
@@ -232,7 +235,7 @@ class HauntedBattlePainter extends CustomPainter {
 
     // Storm clouds
     final cloudPaint = Paint()
-      ..color = const Color(0xFF263238).withOpacity(0.8)
+      ..color = const Color(0xFF263238).withValues(alpha: 0.8)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
     canvas.drawOval(
         Rect.fromCenter(
@@ -270,7 +273,7 @@ class HauntedBattlePainter extends CustomPainter {
 
     // Crack lines on ground
     final crackPaint = Paint()
-      ..color = Colors.black.withOpacity(0.5)
+      ..color = Colors.black.withValues(alpha: 0.5)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
     canvas.drawLine(Offset(w * 0.2, h * 0.84), Offset(w * 0.35, h), crackPaint);
@@ -283,7 +286,7 @@ class HauntedBattlePainter extends CustomPainter {
 
     // Purple mist
     final mistPaint = Paint()
-      ..color = const Color(0xFF7B1FA2).withOpacity(0.08)
+      ..color = const Color(0xFF7B1FA2).withValues(alpha: 0.08)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40);
     canvas.drawOval(
         Rect.fromCenter(center: Offset(w / 2, h * 0.86), width: w, height: 80),
@@ -295,7 +298,7 @@ class HauntedBattlePainter extends CustomPainter {
     c.drawRect(Rect.fromLTRB(x1, y1, x2, y2), p);
     // Stone texture lines
     final lp = Paint()
-      ..color = Colors.black.withOpacity(0.3)
+      ..color = Colors.black.withValues(alpha: 0.3)
       ..strokeWidth = 1;
     for (double y = y1; y < y2; y += 18) {
       c.drawLine(Offset(x1, y), Offset(x2, y), lp);
@@ -338,6 +341,7 @@ class HauntedBattlePainter extends CustomPainter {
 // 4. Dragon Peak — lava, volcanic mountains
 // ─────────────────────────────────────────────
 class DragonPeakBattlePainter extends CustomPainter {
+  const DragonPeakBattlePainter();
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
@@ -345,21 +349,21 @@ class DragonPeakBattlePainter extends CustomPainter {
 
     // Fiery sky
     final bgPaint = Paint()
-      ..shader = LinearGradient(
+      ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          const Color(0xFF1A0500),
-          const Color(0xFF3D0C00),
-          const Color(0xFF8B1A1A),
+          Color(0xFF1A0500),
+          Color(0xFF3D0C00),
+          Color(0xFF8B1A1A),
         ],
-        stops: const [0.0, 0.5, 1.0],
+        stops: [0.0, 0.5, 1.0],
       ).createShader(Rect.fromLTWH(0, 0, w, h));
     canvas.drawRect(Rect.fromLTWH(0, 0, w, h), bgPaint);
 
     // Volcanic ash clouds
     final ashPaint = Paint()
-      ..color = const Color(0xFF4A2000).withOpacity(0.7)
+      ..color = const Color(0xFF4A2000).withValues(alpha: 0.7)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20);
     canvas.drawOval(
         Rect.fromCenter(
@@ -376,14 +380,14 @@ class DragonPeakBattlePainter extends CustomPainter {
 
     // Lava river at ground level
     final lavaPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [const Color(0xFFFF6B00), const Color(0xFFFF3D00)],
+      ..shader = const LinearGradient(
+        colors: [Color(0xFFFF6B00), Color(0xFFFF3D00)],
       ).createShader(Rect.fromLTWH(0, h * 0.83, w, h * 0.08));
     canvas.drawRect(Rect.fromLTWH(0, h * 0.83, w, h * 0.08), lavaPaint);
 
     // Lava glow
     final lavaGlow = Paint()
-      ..color = const Color(0xFFFF6B00).withOpacity(0.35)
+      ..color = const Color(0xFFFF6B00).withValues(alpha: 0.35)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20);
     canvas.drawRect(Rect.fromLTWH(0, h * 0.78, w, 40), lavaGlow);
 
@@ -394,7 +398,7 @@ class DragonPeakBattlePainter extends CustomPainter {
     // Lava bubbles
     final rng = Random(5);
     final bubblePaint = Paint()
-      ..color = const Color(0xFFFF4500).withOpacity(0.8)
+      ..color = const Color(0xFFFF4500).withValues(alpha: 0.8)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
     for (int i = 0; i < 6; i++) {
       canvas.drawCircle(
@@ -405,7 +409,7 @@ class DragonPeakBattlePainter extends CustomPainter {
 
     // Ember particles rising
     final emberPaint = Paint()
-      ..color = const Color(0xFFFF6B00).withOpacity(0.6)
+      ..color = const Color(0xFFFF6B00).withValues(alpha: 0.6)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
     final rng2 = Random(99);
     for (int i = 0; i < 20; i++) {
@@ -428,7 +432,7 @@ class DragonPeakBattlePainter extends CustomPainter {
     );
     // Lava at top
     final lavaTip = Paint()
-      ..color = const Color(0xFFFF4500).withOpacity(0.7)
+      ..color = const Color(0xFFFF4500).withValues(alpha: 0.7)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
     c.drawCircle(Offset(cx, baseY - height + 10), 15, lavaTip);
   }

@@ -121,7 +121,7 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen>
                         boxShadow: [
                           BoxShadow(
                             color: RpgTheme.goldPrimary
-                                .withOpacity(_glow.value * 0.5),
+                                .withValues(alpha: _glow.value * 0.5),
                             blurRadius: 30,
                             spreadRadius: 5,
                           ),
@@ -149,8 +149,8 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen>
                         shadows: [
                           Shadow(
                             blurRadius: 16,
-                            color:
-                                RpgTheme.goldPrimary.withOpacity(_glow.value),
+                            color: RpgTheme.goldPrimary
+                                .withValues(alpha: _glow.value),
                           ),
                         ],
                       ),
@@ -252,7 +252,7 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen>
                                 boxShadow: [
                                   BoxShadow(
                                     color: RpgTheme.goldPrimary
-                                        .withOpacity(_glow.value * 0.6),
+                                        .withValues(alpha: _glow.value * 0.6),
                                     blurRadius: 20,
                                     spreadRadius: 2,
                                   ),
@@ -282,7 +282,7 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen>
     return Row(children: [
       Expanded(
           child: Container(
-              height: 1, color: RpgTheme.goldPrimary.withOpacity(0.3))),
+              height: 1, color: RpgTheme.goldPrimary.withValues(alpha: 0.3))),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Text(text,
@@ -291,7 +291,7 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen>
       ),
       Expanded(
           child: Container(
-              height: 1, color: RpgTheme.goldPrimary.withOpacity(0.3))),
+              height: 1, color: RpgTheme.goldPrimary.withValues(alpha: 0.3))),
     ]);
   }
 
@@ -315,7 +315,8 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen>
             color: RpgTheme.textMuted, fontSize: 15, height: 1.4),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: RpgTheme.goldPrimary.withOpacity(0.3)),
+          borderSide:
+              BorderSide(color: RpgTheme.goldPrimary.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -323,7 +324,8 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen>
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: RpgTheme.textMuted.withOpacity(0.2)),
+          borderSide:
+              BorderSide(color: RpgTheme.textMuted.withValues(alpha: 0.2)),
         ),
       ),
     );
@@ -351,7 +353,7 @@ class _ParticlePainter extends CustomPainter {
       canvas.drawCircle(
         Offset(p.x * size.width, p.y * size.height),
         p.size,
-        Paint()..color = RpgTheme.goldPrimary.withOpacity(opacity),
+        Paint()..color = RpgTheme.goldPrimary.withValues(alpha: opacity),
       );
     }
   }

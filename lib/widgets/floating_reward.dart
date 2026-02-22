@@ -110,9 +110,9 @@ class _FloatingRewardEntryState extends State<_FloatingRewardEntry>
       decoration: BoxDecoration(
         color: Colors.black87,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.8), width: 1.5),
+        border: Border.all(color: color.withValues(alpha: 0.8), width: 1.5),
         boxShadow: [
-          BoxShadow(color: color.withOpacity(0.4), blurRadius: 10),
+          BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 10),
         ],
       ),
       child: Row(

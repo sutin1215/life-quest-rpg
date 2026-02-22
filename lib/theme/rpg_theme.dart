@@ -37,12 +37,12 @@ class RpgTheme {
         color: backgroundCard,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: borderColor ?? goldPrimary.withOpacity(0.3),
+          color: borderColor ?? goldPrimary.withValues(alpha: 0.3),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: (borderColor ?? goldPrimary).withOpacity(0.15),
+            color: (borderColor ?? goldPrimary).withValues(alpha: 0.15),
             blurRadius: 8,
             spreadRadius: 1,
           ),
@@ -56,16 +56,16 @@ class RpgTheme {
           colors: [Color(0xFF1C1409), Color(0xFF0F0B05)],
         ),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: goldPrimary.withOpacity(0.4), width: 1),
+        border: Border.all(color: goldPrimary.withValues(alpha: 0.4), width: 1),
       );
 
   static BoxDecoration glowDecoration(Color glowColor) => BoxDecoration(
         color: backgroundCard,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: glowColor.withOpacity(0.6), width: 1),
+        border: Border.all(color: glowColor.withValues(alpha: 0.6), width: 1),
         boxShadow: [
           BoxShadow(
-            color: glowColor.withOpacity(0.3),
+            color: glowColor.withValues(alpha: 0.3),
             blurRadius: 12,
             spreadRadius: 2,
           ),

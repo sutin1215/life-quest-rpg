@@ -417,7 +417,7 @@ class _BattleScreenState extends State<BattleScreen>
                 animation: _bossHitAnim,
                 builder: (_, child) => ColorFiltered(
                   colorFilter: ColorFilter.mode(
-                    Colors.red.withOpacity(_bossHitAnim.value * 0.6),
+                    Colors.red.withValues(alpha: _bossHitAnim.value * 0.6),
                     BlendMode.srcATop,
                   ),
                   child: child,
@@ -429,7 +429,7 @@ class _BattleScreenState extends State<BattleScreen>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: zoneColor.withOpacity(0.5),
+                          color: zoneColor.withValues(alpha: 0.5),
                           blurRadius: 35,
                           spreadRadius: 8,
                         ),
@@ -476,8 +476,8 @@ class _BattleScreenState extends State<BattleScreen>
                 boxShadow: _heroHitAnim.value > 0
                     ? [
                         BoxShadow(
-                          color:
-                              Colors.red.withOpacity(_heroHitAnim.value * 0.8),
+                          color: Colors.red
+                              .withValues(alpha: _heroHitAnim.value * 0.8),
                           blurRadius: 12,
                           spreadRadius: 2,
                         )
@@ -554,7 +554,7 @@ class _BattleScreenState extends State<BattleScreen>
             color: barColor,
             borderRadius: BorderRadius.circular(3),
             boxShadow: [
-              BoxShadow(color: barColor.withOpacity(0.5), blurRadius: 6),
+              BoxShadow(color: barColor.withValues(alpha: 0.5), blurRadius: 6),
             ],
           ),
         ),
@@ -577,13 +577,19 @@ class _BattleScreenState extends State<BattleScreen>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [color.withOpacity(0.9), color.withOpacity(0.5)],
+              colors: [
+                color.withValues(alpha: 0.9),
+                color.withValues(alpha: 0.5)
+              ],
             ),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.white54, width: 1.5),
             boxShadow: disabled
                 ? []
-                : [BoxShadow(color: color.withOpacity(0.4), blurRadius: 8)],
+                : [
+                    BoxShadow(
+                        color: color.withValues(alpha: 0.4), blurRadius: 8)
+                  ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -608,7 +614,7 @@ class _BattleScreenState extends State<BattleScreen>
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Container(
-        color: Colors.black.withOpacity(0.88),
+        color: Colors.black.withValues(alpha: 0.88),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24.0),

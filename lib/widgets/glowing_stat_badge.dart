@@ -54,11 +54,12 @@ class _GlowingStatBadgeState extends State<GlowingStatBadge>
         decoration: BoxDecoration(
           color: RpgTheme.backgroundCard,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: widget.color.withOpacity(0.7), width: 1.5),
+          border: Border.all(
+              color: widget.color.withValues(alpha: 0.7), width: 1.5),
           boxShadow: widget.animate
               ? [
                   BoxShadow(
-                    color: widget.color.withOpacity(_glow.value),
+                    color: widget.color.withValues(alpha: _glow.value),
                     blurRadius: 12,
                     spreadRadius: 2,
                   ),

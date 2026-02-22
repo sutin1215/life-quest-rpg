@@ -10,8 +10,23 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // 1. Safe Initialization of Environment and Firebase
+  try {
+    // Attempt to load .env, but don't crash if it's missing (helps during Git moves)
+    await dotenv
+        .load(fileName: ".env")
+        .catchError((e) => print("Warning: .env file not found"));
+
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } catch (e) {
+    debugPrint("Critical Init Error: $e");
+  }
+
   runApp(const LifeQuestRPG());
 }
 
@@ -23,9 +38,13 @@ class LifeQuestRPG extends StatelessWidget {
     return MaterialApp(
       title: 'LifeQuest RPG',
       debugShowCheckedModeBanner: false,
-      theme:
-          ThemeData(brightness: Brightness.dark, primarySwatch: Colors.amber),
-      // IMPROVEMENT #1: Show splash screen first, then auth wrapper
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: Colors.amber,
+        // Using a deep background to match your AuthWrapper
+        scaffoldBackgroundColor: const Color(0xFF0D1B2A),
+      ),
+      // Starts with Splash, then moves to AuthWrapper
       home: SplashScreen(nextScreen: const AuthWrapper()),
     );
   }
@@ -49,8 +68,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   Future<void> _signInAnonymously() async {
+    // Check if we actually need to sign in
     if (FirebaseAuth.instance.currentUser == null) {
-      setState(() => _isSigningIn = true);
+      if (mounted) setState(() => _isSigningIn = true);
       try {
         await FirebaseAuth.instance.signInAnonymously();
       } catch (e) {
@@ -63,39 +83,45 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    // 2. Handle the "Authenticating" state
     if (FirebaseAuth.instance.currentUser == null || _isSigningIn) {
       return const Scaffold(
-        backgroundColor: Color(0xFF0D1B2A),
-        body:
-            Center(child: CircularProgressIndicator(color: Color(0xFFC9A84C))),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFC9A84C)),
+        ),
       );
     }
 
+    // 3. Handle the "User Data" state via Firestore
     return StreamBuilder(
       stream: _db.getUserStats(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return const Scaffold(
-            backgroundColor: Color(0xFF0D1B2A),
             body: Center(
               child: Text(
-                'Connection error.\nPlease restart the app.',
+                'Connection error.\nPlease check internet or keys.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white70),
               ),
             ),
           );
         }
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            backgroundColor: Color(0xFF0D1B2A),
             body: Center(
-                child: CircularProgressIndicator(color: Color(0xFFC9A84C))),
+              child: CircularProgressIndicator(color: Color(0xFFC9A84C)),
+            ),
           );
         }
+
+        // If the document exists, the user has already finished Character Creation
         if (snapshot.hasData && snapshot.data!.exists) {
           return const HomeScreen();
         }
+
+        // New users or deleted accounts go to Character Creation
         return const CharacterCreationScreen();
       },
     );

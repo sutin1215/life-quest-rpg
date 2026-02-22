@@ -16,7 +16,7 @@ class AiService {
     // gemini-2.5-flash-lite: fastest & cheapest currently available model
     // — perfect for real-time battle calls (taunts, narration)
     _model = GenerativeModel(
-      model: 'gemini-2.5-flash-lite-preview-06-17',
+      model: 'gemini-2.5-flash-lite',
       apiKey: apiKey,
     );
 

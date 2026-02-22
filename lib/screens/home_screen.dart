@@ -36,7 +36,8 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           color: RpgTheme.backgroundMid,
           border: Border(
-              top: BorderSide(color: RpgTheme.goldPrimary.withOpacity(0.3))),
+              top: BorderSide(
+                  color: RpgTheme.goldPrimary.withValues(alpha: 0.3))),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -91,7 +92,7 @@ class _QuestBoardState extends State<QuestBoard> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(
-              height: 1, color: RpgTheme.goldPrimary.withOpacity(0.3)),
+              height: 1, color: RpgTheme.goldPrimary.withValues(alpha: 0.3)),
         ),
       ),
       body: Column(
@@ -105,7 +106,7 @@ class _QuestBoardState extends State<QuestBoard> {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-                color: RpgTheme.goldPrimary.withOpacity(0.5),
+                color: RpgTheme.goldPrimary.withValues(alpha: 0.5),
                 blurRadius: 16,
                 spreadRadius: 2),
           ],
@@ -263,7 +264,8 @@ class _QuestBoardState extends State<QuestBoard> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.auto_fix_high,
-                    size: 64, color: RpgTheme.goldPrimary.withOpacity(0.3)),
+                    size: 64,
+                    color: RpgTheme.goldPrimary.withValues(alpha: 0.3)),
                 const SizedBox(height: 16),
                 Text('No quests active, Adventurer!',
                     style: GoogleFonts.vt323(
@@ -272,7 +274,7 @@ class _QuestBoardState extends State<QuestBoard> {
                 Text('Tap + below to summon one.',
                     style: GoogleFonts.vt323(
                         fontSize: 18,
-                        color: RpgTheme.textMuted.withOpacity(0.6))),
+                        color: RpgTheme.textMuted.withValues(alpha: 0.6))),
               ],
             ),
           );
@@ -310,10 +312,10 @@ class _QuestBoardState extends State<QuestBoard> {
           colors: [Color(0xFF1C1409), Color(0xFF130E04)],
         ),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: statColor.withOpacity(0.5), width: 1.5),
+        border: Border.all(color: statColor.withValues(alpha: 0.5), width: 1.5),
         boxShadow: [
           BoxShadow(
-              color: statColor.withOpacity(0.15),
+              color: statColor.withValues(alpha: 0.15),
               blurRadius: 8,
               spreadRadius: 1),
         ],
@@ -329,8 +331,8 @@ class _QuestBoardState extends State<QuestBoard> {
               height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: statColor.withOpacity(0.15),
-                border: Border.all(color: statColor.withOpacity(0.5)),
+                color: statColor.withValues(alpha: 0.15),
+                border: Border.all(color: statColor.withValues(alpha: 0.5)),
               ),
               child: Icon(statIcon, color: statColor, size: 16),
             ),
@@ -360,9 +362,10 @@ class _QuestBoardState extends State<QuestBoard> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: statColor.withOpacity(0.15),
+                        color: statColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: statColor.withOpacity(0.5)),
+                        border:
+                            Border.all(color: statColor.withValues(alpha: 0.5)),
                       ),
                       child: Text('+1 ${q['statType']}',
                           style: GoogleFonts.vt323(
@@ -378,15 +381,15 @@ class _QuestBoardState extends State<QuestBoard> {
                           gradient: LinearGradient(
                             colors: [
                               RpgTheme.bloodRed,
-                              RpgTheme.bloodRed.withOpacity(0.7)
+                              RpgTheme.bloodRed.withValues(alpha: 0.7)
                             ],
                           ),
                           borderRadius: BorderRadius.circular(6),
-                          border:
-                              Border.all(color: Colors.red.withOpacity(0.5)),
+                          border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.5)),
                           boxShadow: [
                             BoxShadow(
-                                color: RpgTheme.bloodRed.withOpacity(0.3),
+                                color: RpgTheme.bloodRed.withValues(alpha: 0.3),
                                 blurRadius: 6),
                           ],
                         ),
@@ -499,61 +502,59 @@ class _QuestBoardState extends State<QuestBoard> {
     final afterData = after.data() as Map<String, dynamic>?;
     final afterLvl = afterData?['level'] ?? 1;
 
-    if (afterLvl > beforeLvl && mounted) {
-      HapticFeedback.heavyImpact();
-      showDialog(
-        context: context,
-        builder: (ctx) => Dialog(
-          backgroundColor: RpgTheme.backgroundMid,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: RpgTheme.goldPrimary, width: 2),
+    if (afterLvl <= beforeLvl) return;
+    if (!mounted) return;
+    HapticFeedback.heavyImpact();
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: RpgTheme.backgroundMid,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: RpgTheme.goldPrimary, width: 2),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              const BoxShadow(
+                  color: RpgTheme.goldPrimary, blurRadius: 30, spreadRadius: -5)
+            ],
           ),
-          child: Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                const BoxShadow(
-                    color: RpgTheme.goldPrimary,
-                    blurRadius: 30,
-                    spreadRadius: -5)
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.auto_awesome,
-                    color: RpgTheme.goldPrimary, size: 64),
-                const SizedBox(height: 12),
-                Text('LEVEL UP!',
-                    style: GoogleFonts.vt323(
-                        fontSize: 52,
-                        color: RpgTheme.goldPrimary,
-                        shadows: [
-                          const Shadow(
-                              blurRadius: 20, color: RpgTheme.goldPrimary)
-                        ])),
-                Text('You are now Level $afterLvl!',
-                    style: GoogleFonts.vt323(
-                        fontSize: 26, color: RpgTheme.textPrimary)),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: RpgTheme.goldPrimary,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 12)),
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text('ONWARD!',
-                      style:
-                          GoogleFonts.vt323(fontSize: 22, color: Colors.black)),
-                ),
-              ],
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.auto_awesome,
+                  color: RpgTheme.goldPrimary, size: 64),
+              const SizedBox(height: 12),
+              Text('LEVEL UP!',
+                  style: GoogleFonts.vt323(
+                      fontSize: 52,
+                      color: RpgTheme.goldPrimary,
+                      shadows: [
+                        const Shadow(
+                            blurRadius: 20, color: RpgTheme.goldPrimary)
+                      ])),
+              Text('You are now Level $afterLvl!',
+                  style: GoogleFonts.vt323(
+                      fontSize: 26, color: RpgTheme.textPrimary)),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: RpgTheme.goldPrimary,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 12)),
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('ONWARD!',
+                    style:
+                        GoogleFonts.vt323(fontSize: 22, color: Colors.black)),
+              ),
+            ],
           ),
         ),
-      );
-    }
+      ),
+    );
   }
 
   Widget _buildSkeletonCard() {
@@ -624,7 +625,7 @@ class _AddQuestDialogState extends State<_AddQuestDialog> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CircularProgressIndicator(color: RpgTheme.goldPrimary),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text('The Guildmaster ponders...',
                         style: TextStyle(color: RpgTheme.textMuted)),
                   ],
@@ -642,7 +643,8 @@ class _AddQuestDialogState extends State<_AddQuestDialog> {
                     hintStyle: const TextStyle(color: RpgTheme.textMuted),
                     enabledBorder: OutlineInputBorder(
                         borderSide: BorderSide(
-                            color: RpgTheme.goldPrimary.withOpacity(0.3))),
+                            color:
+                                RpgTheme.goldPrimary.withValues(alpha: 0.3))),
                     focusedBorder: const OutlineInputBorder(
                         borderSide: BorderSide(color: RpgTheme.goldPrimary)),
                     filled: true,

@@ -42,9 +42,9 @@ class SlimePainter extends CustomPainter {
     final cy = size.height / 2 + 10;
 
     // Body
-    final bodyPaint = Paint()..color = color.withOpacity(0.9);
+    final bodyPaint = Paint()..color = color.withValues(alpha: 0.9);
     final glowPaint = Paint()
-      ..color = color.withOpacity(0.3)
+      ..color = color.withValues(alpha: 0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
 
     canvas.drawOval(
@@ -57,7 +57,7 @@ class SlimePainter extends CustomPainter {
     // Shine
     canvas.drawOval(
       Rect.fromCenter(center: Offset(cx - 18, cy - 16), width: 20, height: 14),
-      Paint()..color = Colors.white.withOpacity(0.4),
+      Paint()..color = Colors.white.withValues(alpha: 0.4),
     );
 
     // Eyes
@@ -89,7 +89,7 @@ class SlimePainter extends CustomPainter {
 
     // Bubbles
     final bubblePaint = Paint()
-      ..color = color.withOpacity(0.5)
+      ..color = color.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(Offset(cx + 38, cy - 20), 8, bubblePaint);
@@ -111,7 +111,7 @@ class GoblinPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final cy = size.height / 2 + 10;
-    final skinColor = const Color(0xFF6B8C42);
+    const skinColor = Color(0xFF6B8C42);
 
     // Crown
     final crownPaint = Paint()..color = const Color(0xFFFFD700);
@@ -174,9 +174,9 @@ class GoblinPainter extends CustomPainter {
       Paint()..color = skinColor.withRed(100),
     );
     canvas.drawCircle(Offset(cx - 6, cy - 8), 4,
-        Paint()..color = Colors.black.withOpacity(0.4));
+        Paint()..color = Colors.black.withValues(alpha: 0.4));
     canvas.drawCircle(Offset(cx + 6, cy - 8), 4,
-        Paint()..color = Colors.black.withOpacity(0.4));
+        Paint()..color = Colors.black.withValues(alpha: 0.4));
 
     // Menacing grin
     final mouthPaint = Paint()
@@ -197,7 +197,7 @@ class GoblinPainter extends CustomPainter {
         Rect.fromLTWH(cx + 14, cy + 8, 6, 12), Paint()..color = Colors.white);
 
     // Body
-    final bodyPaint = Paint()..color = color.withOpacity(0.8);
+    final bodyPaint = Paint()..color = color.withValues(alpha: 0.8);
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromCenter(center: Offset(cx, cy + 38), width: 60, height: 40),
@@ -264,7 +264,7 @@ class SkeletonPainter extends CustomPainter {
     // Shadow on skull
     canvas.drawOval(
       Rect.fromCenter(center: Offset(cx + 8, cy - 16), width: 30, height: 35),
-      Paint()..color = shadowPaint.color.withOpacity(0.3),
+      Paint()..color = shadowPaint.color.withValues(alpha: 0.3),
     );
     // Jaw
     canvas.drawRRect(
@@ -277,7 +277,7 @@ class SkeletonPainter extends CustomPainter {
 
     // Glowing eye sockets
     final eyeGlowPaint = Paint()
-      ..color = color.withOpacity(0.9)
+      ..color = color.withValues(alpha: 0.9)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
     canvas.drawCircle(Offset(cx - 16, cy - 20), 12, eyeGlowPaint);
     canvas.drawCircle(Offset(cx + 16, cy - 20), 12, eyeGlowPaint);
@@ -285,10 +285,10 @@ class SkeletonPainter extends CustomPainter {
         Offset(cx - 16, cy - 20), 8, Paint()..color = Colors.black);
     canvas.drawCircle(
         Offset(cx + 16, cy - 20), 8, Paint()..color = Colors.black);
-    canvas.drawCircle(
-        Offset(cx - 16, cy - 20), 5, Paint()..color = color.withOpacity(0.95));
-    canvas.drawCircle(
-        Offset(cx + 16, cy - 20), 5, Paint()..color = color.withOpacity(0.95));
+    canvas.drawCircle(Offset(cx - 16, cy - 20), 5,
+        Paint()..color = color.withValues(alpha: 0.95));
+    canvas.drawCircle(Offset(cx + 16, cy - 20), 5,
+        Paint()..color = color.withValues(alpha: 0.95));
 
     // Nasal cavity
     canvas.drawPath(
@@ -315,7 +315,7 @@ class SkeletonPainter extends CustomPainter {
 
     // Dark crown / hood wisps
     final wispPaint = Paint()
-      ..color = color.withOpacity(0.4)
+      ..color = color.withValues(alpha: 0.4)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
     canvas.drawOval(
       Rect.fromCenter(center: Offset(cx, cy - 58), width: 80, height: 30),
@@ -341,7 +341,7 @@ class DragonPainter extends CustomPainter {
 
     // Fire breath glow behind
     final fireGlow = Paint()
-      ..color = Colors.orange.withOpacity(0.3)
+      ..color = Colors.orange.withValues(alpha: 0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18);
     canvas.drawOval(
       Rect.fromCenter(center: Offset(cx - 30, cy + 20), width: 60, height: 30),
@@ -361,7 +361,7 @@ class DragonPainter extends CustomPainter {
     );
 
     // Wing hints
-    final wingPaint = Paint()..color = color.withOpacity(0.7);
+    final wingPaint = Paint()..color = color.withValues(alpha: 0.7);
     final wingL = Path()
       ..moveTo(cx - 10, cy)
       ..lineTo(cx - 60, cy - 35)
@@ -480,12 +480,12 @@ class DefaultBossPainter extends CustomPainter {
     final cx = size.width / 2;
     final cy = size.height / 2;
     final glow = Paint()
-      ..color = color.withOpacity(0.4)
+      ..color = color.withValues(alpha: 0.4)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20);
     canvas.drawCircle(Offset(cx, cy), 50, glow);
     canvas.drawCircle(Offset(cx, cy), 44, Paint()..color = color);
-    canvas.drawCircle(
-        Offset(cx, cy), 44, Paint()..color = Colors.black.withOpacity(0.3));
+    canvas.drawCircle(Offset(cx, cy), 44,
+        Paint()..color = Colors.black.withValues(alpha: 0.3));
     canvas.drawCircle(
         Offset(cx - 12, cy - 8), 10, Paint()..color = Colors.black);
     canvas.drawCircle(

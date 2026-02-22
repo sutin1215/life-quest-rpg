@@ -69,7 +69,7 @@ class WorldMapScreen extends StatelessWidget {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(
-              height: 1, color: RpgTheme.goldPrimary.withOpacity(0.3)),
+              height: 1, color: RpgTheme.goldPrimary.withValues(alpha: 0.3)),
         ),
       ),
       body: StreamBuilder<DocumentSnapshot>(
@@ -296,7 +296,7 @@ class _AnimatedMapMarkerState extends State<_AnimatedMapMarker>
                                 ? Colors.black
                                 : widget.isDefeated
                                     ? Colors.black45
-                                    : zoneColor.withOpacity(0.6),
+                                    : zoneColor.withValues(alpha: 0.6),
                             blurRadius: widget.isNext ? 28 : 10,
                             spreadRadius: widget.isNext ? 6 : 2,
                           ),
@@ -334,7 +334,8 @@ class _AnimatedMapMarkerState extends State<_AnimatedMapMarker>
                             borderRadius: BorderRadius.circular(8),
                             boxShadow: [
                               BoxShadow(
-                                  color: RpgTheme.goldPrimary.withOpacity(0.6),
+                                  color: RpgTheme.goldPrimary
+                                      .withValues(alpha: 0.6),
                                   blurRadius: 6)
                             ],
                           ),
@@ -350,14 +351,14 @@ class _AnimatedMapMarkerState extends State<_AnimatedMapMarker>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.82),
+                    color: Colors.black.withValues(alpha: 0.82),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                         color: widget.isDefeated
-                            ? Colors.grey.withOpacity(0.3)
+                            ? Colors.grey.withValues(alpha: 0.3)
                             : widget.isLocked
-                                ? Colors.grey.withOpacity(0.2)
-                                : RpgTheme.goldPrimary.withOpacity(0.5)),
+                                ? Colors.grey.withValues(alpha: 0.2)
+                                : RpgTheme.goldPrimary.withValues(alpha: 0.5)),
                   ),
                   child: Text(
                     widget.zone['name'] as String,
@@ -408,7 +409,7 @@ class FogOfWarPainter extends CustomPainter {
       final double y = zone['y'] as double;
 
       final fogPaint = Paint()
-        ..color = const Color(0xFF0D1B2A).withOpacity(0.55)
+        ..color = const Color(0xFF0D1B2A).withValues(alpha: 0.55)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
 
       canvas.drawCircle(Offset(x, y), 90, fogPaint);
@@ -463,7 +464,7 @@ class RpgMapPainter extends CustomPainter {
 
   void _drawDashedLines(Canvas canvas) {
     final paint = Paint()
-      ..color = RpgTheme.goldPrimary.withOpacity(0.25)
+      ..color = RpgTheme.goldPrimary.withValues(alpha: 0.25)
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 

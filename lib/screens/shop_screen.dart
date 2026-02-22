@@ -91,7 +91,7 @@ class ShopScreen extends StatelessWidget {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(
-              height: 1, color: RpgTheme.goldPrimary.withOpacity(0.3)),
+              height: 1, color: RpgTheme.goldPrimary.withValues(alpha: 0.3)),
         ),
       ),
       body: Column(
@@ -107,10 +107,10 @@ class ShopScreen extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: RpgTheme.goldPrimary.withOpacity(0.1),
+                    color: RpgTheme.goldPrimary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: RpgTheme.goldPrimary.withOpacity(0.5)),
+                        color: RpgTheme.goldPrimary.withValues(alpha: 0.5)),
                   ),
                   child: const Icon(Icons.storefront,
                       color: RpgTheme.goldPrimary, size: 24),
@@ -142,7 +142,8 @@ class ShopScreen extends StatelessWidget {
                           Container(
                               height: 1,
                               width: 40,
-                              color: RpgTheme.goldPrimary.withOpacity(0.4)),
+                              color:
+                                  RpgTheme.goldPrimary.withValues(alpha: 0.4)),
                           const SizedBox(width: 8),
                           Text('RARE ITEMS',
                               style: GoogleFonts.vt323(
@@ -153,7 +154,8 @@ class ShopScreen extends StatelessWidget {
                           Expanded(
                             child: Container(
                                 height: 1,
-                                color: RpgTheme.goldPrimary.withOpacity(0.4)),
+                                color: RpgTheme.goldPrimary
+                                    .withValues(alpha: 0.4)),
                           ),
                         ]),
                       ),
@@ -183,18 +185,20 @@ class ShopScreen extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             RpgTheme.backgroundCard,
-            isRare ? statColor.withOpacity(0.08) : RpgTheme.backgroundCard,
+            isRare
+                ? statColor.withValues(alpha: 0.08)
+                : RpgTheme.backgroundCard,
           ],
         ),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: statColor.withOpacity(isRare ? 0.5 : 0.25),
+          color: statColor.withValues(alpha: isRare ? 0.5 : 0.25),
           width: isRare ? 1.5 : 1,
         ),
         boxShadow: isRare
             ? [
                 BoxShadow(
-                    color: statColor.withOpacity(0.2),
+                    color: statColor.withValues(alpha: 0.2),
                     blurRadius: 10,
                     spreadRadius: 1)
               ]
@@ -209,8 +213,8 @@ class ShopScreen extends StatelessWidget {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: statColor.withOpacity(0.12),
-                border: Border.all(color: statColor.withOpacity(0.5)),
+                color: statColor.withValues(alpha: 0.12),
+                border: Border.all(color: statColor.withValues(alpha: 0.5)),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Stack(
@@ -244,10 +248,11 @@ class ShopScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
-                          color: RpgTheme.goldPrimary.withOpacity(0.15),
+                          color: RpgTheme.goldPrimary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                              color: RpgTheme.goldPrimary.withOpacity(0.5)),
+                              color:
+                                  RpgTheme.goldPrimary.withValues(alpha: 0.5)),
                         ),
                         child: Text('RARE',
                             style: GoogleFonts.vt323(
@@ -266,9 +271,10 @@ class ShopScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: statColor.withOpacity(0.12),
+                        color: statColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: statColor.withOpacity(0.4)),
+                        border:
+                            Border.all(color: statColor.withValues(alpha: 0.4)),
                       ),
                       child: Text(item['desc'] as String,
                           style: GoogleFonts.vt323(
@@ -291,14 +297,15 @@ class ShopScreen extends StatelessWidget {
                     end: Alignment.bottomRight,
                     colors: [
                       RpgTheme.forestGreen,
-                      RpgTheme.forestGreen.withOpacity(0.7)
+                      RpgTheme.forestGreen.withValues(alpha: 0.7)
                     ],
                   ),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.green.withOpacity(0.4)),
+                  border:
+                      Border.all(color: Colors.green.withValues(alpha: 0.4)),
                   boxShadow: [
                     BoxShadow(
-                        color: RpgTheme.forestGreen.withOpacity(0.3),
+                        color: RpgTheme.forestGreen.withValues(alpha: 0.3),
                         blurRadius: 6)
                   ],
                 ),
@@ -330,12 +337,14 @@ class ShopScreen extends StatelessWidget {
   void _handlePurchase(
       BuildContext context, DatabaseService db, Map item) async {
     HapticFeedback.mediumImpact();
+    // Capture messenger before async gap to satisfy BuildContext lint
+    final messenger = ScaffoldMessenger.of(context);
     bool success = await db.buyItem(
         item['cost'] as int, item['stat'] as String, item['amt'] as int);
     if (!context.mounted) return;
     if (success) {
       HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      messenger.showSnackBar(SnackBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         content: Container(
@@ -353,7 +362,7 @@ class ShopScreen extends StatelessWidget {
         duration: const Duration(seconds: 2),
       ));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      messenger.showSnackBar(SnackBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         content: Container(

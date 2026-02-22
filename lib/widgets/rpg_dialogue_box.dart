@@ -111,10 +111,10 @@ class _RpgDialogueBoxState extends State<RpgDialogueBox>
             colors: [Color(0xFF1C1409), Color(0xFF0F0B05)],
           ),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: accent.withOpacity(0.7), width: 2),
+          border: Border.all(color: accent.withValues(alpha: 0.7), width: 2),
           boxShadow: [
             BoxShadow(
-              color: accent.withOpacity(0.2),
+              color: accent.withValues(alpha: 0.2),
               blurRadius: 12,
               spreadRadius: 1,
             ),
@@ -130,8 +130,8 @@ class _RpgDialogueBoxState extends State<RpgDialogueBox>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(0.2),
-                  border: Border.all(color: accent.withOpacity(0.6)),
+                  color: accent.withValues(alpha: 0.2),
+                  border: Border.all(color: accent.withValues(alpha: 0.6)),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -185,7 +185,7 @@ class _RpgDialogueBoxState extends State<RpgDialogueBox>
                   'TAP TO SKIP ▶',
                   style: GoogleFonts.vt323(
                     fontSize: 12,
-                    color: accent.withOpacity(0.5),
+                    color: accent.withValues(alpha: 0.5),
                   ),
                 ),
               ),
