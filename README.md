@@ -3,13 +3,6 @@
 # ⚔️ LifeQuest RPG
 
 ### *Gamifying Real Life — One Quest at a Time*
-
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter)](https://flutter.dev)
-[![Firebase](https://img.shields.io/badge/Firebase-Firestore%20%7C%20Auth-FFCA28?logo=firebase)](https://firebase.google.com)
-[![Gemini](https://img.shields.io/badge/Google%20Gemini-2.5%20Flash-4285F4?logo=google)](https://ai.google.dev)
-[![KitaHack](https://img.shields.io/badge/KitaHack-2026-gold)](https://kitahack.com)
-[![SDG](https://img.shields.io/badge/SDG%203-Good%20Health%20%26%20Well--being-4C9BE8)](https://sdgs.un.org/goals/goal3)
-
 **KitaHack 2026 — SDG 3: Good Health and Well-being**
 
 > A mobile RPG where your real-life tasks become epic quests, powered by Google Gemini AI.  

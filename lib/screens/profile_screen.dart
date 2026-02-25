@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/ai_service.dart';
 import '../services/database_service.dart';
 import '../theme/rpg_theme.dart';
 import '../widgets/glowing_stat_badge.dart';
-import 'home_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,8 +15,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   final _db = DatabaseService();
-  final _ai = AiService();
-  bool _isLoading = false;
 
   late AnimationController _shimmerCtrl;
   late Animation<double> _shimmer;
@@ -36,18 +32,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   void dispose() {
     _shimmerCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _generateQuestsAndBegin(Map<String, dynamic> userData) async {
-    setState(() => _isLoading = true);
-    final bio = userData['bio'] ?? '';
-    final mainQuest = userData['mainQuest'] ?? 'Achieve my goals';
-    final quests = await _ai.generateStarterQuests(bio, mainQuest);
-    await _db.addQuests(quests);
-    if (mounted) {
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const HomeScreen()));
-    }
   }
 
   @override
@@ -88,10 +72,6 @@ class _ProfileScreenState extends State<ProfileScreen>
           final String avatarUrl =
               'https://api.dicebear.com/9.x/pixel-art/png?seed=$className';
 
-          final bool isRevealMode = data['currentZone'] == null ||
-              (data['currentZone'] == 1 &&
-                  (data['level'] == null || data['level'] == 1));
-
           return SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -104,7 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   AnimatedBuilder(
                     animation: _shimmer,
                     builder: (_, __) => Text(
-                      isRevealMode ? 'HERO AWAKENED' : 'HERO PROFILE',
+                      'HERO PROFILE',
                       style: GoogleFonts.vt323(
                         fontSize: 38,
                         color: RpgTheme.goldPrimary,
@@ -137,7 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
                   const SizedBox(height: 16),
 
-                  // IMPROVEMENT #8: Glowing animated stat badges
+                  // Glowing animated stat badges
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -184,52 +164,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
 
                   const SizedBox(height: 24),
-
-                  if (isRevealMode)
-                    SizedBox(
-                      width: double.infinity,
-                      child: _isLoading
-                          ? Column(
-                              children: [
-                                const CircularProgressIndicator(
-                                    color: RpgTheme.goldPrimary),
-                                const SizedBox(height: 12),
-                                Text('The Fate Weaver prepares your quests...',
-                                    style: GoogleFonts.vt323(
-                                        fontSize: 18,
-                                        color: RpgTheme.textMuted)),
-                              ],
-                            )
-                          : GestureDetector(
-                              onTap: () => _generateQuestsAndBegin(data),
-                              child: Container(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 18),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      RpgTheme.goldPrimary,
-                                      Color(0xFFE8A838)
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [
-                                    BoxShadow(
-                                        color: RpgTheme.goldPrimary
-                                            .withValues(alpha: 0.5),
-                                        blurRadius: 16,
-                                        spreadRadius: 2),
-                                  ],
-                                ),
-                                child: Text('BEGIN JOURNEY',
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.vt323(
-                                        fontSize: 26,
-                                        color: Colors.black,
-                                        letterSpacing: 2)),
-                              ),
-                            ),
-                    ),
                 ],
               ),
             ),
