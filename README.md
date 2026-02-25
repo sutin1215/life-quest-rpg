@@ -3,13 +3,6 @@
 # ⚔️ LifeQuest RPG
 
 ### *Gamifying Real Life — One Quest at a Time*
-
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter)](https://flutter.dev)
-[![Firebase](https://img.shields.io/badge/Firebase-Firestore%20%7C%20Auth-FFCA28?logo=firebase)](https://firebase.google.com)
-[![Gemini](https://img.shields.io/badge/Google%20Gemini-2.5%20Flash-4285F4?logo=google)](https://ai.google.dev)
-[![KitaHack](https://img.shields.io/badge/KitaHack-2026-gold)](https://kitahack.com)
-[![SDG](https://img.shields.io/badge/SDG%203-Good%20Health%20%26%20Well--being-4C9BE8)](https://sdgs.un.org/goals/goal3)
-
 **KitaHack 2026 — SDG 3: Good Health and Well-being**
 
 > A mobile RPG where your real-life tasks become epic quests, powered by Google Gemini AI.  
@@ -731,14 +724,15 @@ await _db.runTransaction((t) async {
 
 ## 👥 Team
 
-**Team Name:** *(fill in)*
+**Team Name:** *The Kambings*
 
 | Name | Role |
 |---|---|
-| *(fill in)* | *(fill in)* |
-| *(fill in)* | *(fill in)* |
+| *MUHAMMAD FAIZAL HARIS BIN AIDI* | *LEAD DEVELOPER* |
+| *MUHAMMAD NOOR DANISH BIN NORDIN* | *GAME LOGIC & TESTING* |
+| *NADHIRATUL INSYIRAH BINTI ESMADI* | *UI/UX & DOCUMENTATION* |
 
-**Institution:** *(fill in)*  
+**Institution:** *HWUM, UPM, IIUM*  
 **Competition:** KitaHack 2026  
 **SDG Target:** SDG 3.4 — Mental Health and Well-being
 
