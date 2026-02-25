@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
@@ -90,7 +91,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    // 2. Handle the "Authenticating" state
+    // 1. Handle the "Authenticating" state
     if (FirebaseAuth.instance.currentUser == null || _isSigningIn) {
       return const Scaffold(
         body: Center(
@@ -99,9 +100,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     }
 
-    // 3. Handle the "User Data" state via Firestore
-    return StreamBuilder(
-      stream: _db.getUserStats(),
+    // 2. Handle the "User Data" state via Firestore
+    // We use FutureBuilder and .first so it only checks ONCE on app load,
+    // preventing it from instantly auto-routing while the pop-up is showing!
+    return FutureBuilder<DocumentSnapshot>(
+      future: _db.getUserStats().first,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Scaffold(

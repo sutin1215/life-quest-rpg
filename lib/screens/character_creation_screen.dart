@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/ai_service.dart';
 import '../services/database_service.dart';
 import '../theme/rpg_theme.dart';
-import 'profile_screen.dart';
+import 'home_screen.dart';
 
 class CharacterCreationScreen extends StatefulWidget {
   const CharacterCreationScreen({super.key});
@@ -75,9 +75,21 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen>
       result['mainQuest'] = _mainQuestController.text;
       result['bio'] = _bioController.text;
       await _db.initializeUser(result);
+
       if (!mounted) return;
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+
+      setState(() => _isLoading = false);
+
+      // Show the epic hero reveal dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false, // Force them to click "Start Quest"
+        builder: (_) => HeroRevealDialog(
+          heroData: result,
+          ai: _ai,
+          db: _db,
+        ),
+      );
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -360,4 +372,234 @@ class _ParticlePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ParticlePainter old) => old.t != t;
+}
+
+// ── Epic Reveal Dialog ────────────────────────────────────────────────────────
+class HeroRevealDialog extends StatefulWidget {
+  final Map<String, dynamic> heroData;
+  final AiService ai;
+  final DatabaseService db;
+
+  const HeroRevealDialog({
+    super.key,
+    required this.heroData,
+    required this.ai,
+    required this.db,
+  });
+
+  @override
+  State<HeroRevealDialog> createState() => _HeroRevealDialogState();
+}
+
+class _HeroRevealDialogState extends State<HeroRevealDialog>
+    with SingleTickerProviderStateMixin {
+  bool _isGeneratingQuests = false;
+  late AnimationController _pulseCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _startJourney() async {
+    setState(() => _isGeneratingQuests = true);
+
+    try {
+      // 1. Generate Starter Quests based on what they typed
+      final quests = await widget.ai.generateStarterQuests(
+        widget.heroData['bio'] ?? '',
+        widget.heroData['mainQuest'] ?? '',
+      );
+
+      // 2. Save them to Firestore
+      await widget.db.addQuests(quests);
+
+      // 3. Navigate to Home Screen (Quest Board) and remove back history
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      // Fallback if AI fails: just go to home screen, they can add quests manually
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final className = widget.heroData['className'] ?? 'Hero';
+    final avatarUrl =
+        'https://api.dicebear.com/9.x/pixel-art/png?seed=$className';
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+      child: AnimatedBuilder(
+          animation: _pulseCtrl,
+          builder: (context, child) {
+            return Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF1C1409), Color(0xFF0F0B05)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: RpgTheme.goldPrimary, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: RpgTheme.goldPrimary
+                        .withValues(alpha: 0.3 + (_pulseCtrl.value * 0.2)),
+                    blurRadius: 20 + (_pulseCtrl.value * 10),
+                    spreadRadius: 2,
+                  )
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'HERO AWAKENED!',
+                    style: GoogleFonts.vt323(
+                      fontSize: 36,
+                      color: RpgTheme.goldPrimary,
+                      shadows: [
+                        const Shadow(
+                            color: RpgTheme.goldPrimary, blurRadius: 10)
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Avatar
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: RpgTheme.goldPrimary, width: 2),
+                      color: Colors.black45,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.network(
+                        avatarUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.person,
+                            color: Colors.white, size: 40),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Class Name
+                  Text(
+                    className.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.vt323(fontSize: 28, color: Colors.white),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Stats
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildMiniStat(
+                          'STR', widget.heroData['str'], RpgTheme.strColor),
+                      _buildMiniStat(
+                          'INT', widget.heroData['int'], RpgTheme.intColor),
+                      _buildMiniStat(
+                          'DEX', widget.heroData['dex'], RpgTheme.dexColor),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Origin Story
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black45,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: RpgTheme.textMuted.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      widget.heroData['story'] ?? '',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.vt323(
+                          fontSize: 18,
+                          color: RpgTheme.textPrimary,
+                          height: 1.3),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Button or Loading State
+                  _isGeneratingQuests
+                      ? Column(
+                          children: [
+                            const CircularProgressIndicator(
+                                color: RpgTheme.goldPrimary),
+                            const SizedBox(height: 12),
+                            Text('Forging your first quests...',
+                                style: GoogleFonts.vt323(
+                                    fontSize: 18, color: RpgTheme.goldPrimary)),
+                          ],
+                        )
+                      : SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: RpgTheme.goldPrimary,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: _startJourney,
+                            child: Text(
+                              'START QUEST',
+                              style: GoogleFonts.vt323(
+                                  fontSize: 24,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                ],
+              ),
+            );
+          }),
+    );
+  }
+
+  Widget _buildMiniStat(String label, int? val, Color color) {
+    return Column(
+      children: [
+        Text(label, style: GoogleFonts.vt323(fontSize: 16, color: color)),
+        Text('${val ?? 0}',
+            style: GoogleFonts.vt323(fontSize: 24, color: Colors.white)),
+      ],
+    );
+  }
 }
